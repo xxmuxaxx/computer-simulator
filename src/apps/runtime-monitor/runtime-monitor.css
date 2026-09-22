@@ -1,0 +1,64 @@
+.runtime-monitor {
+  padding: 16px;
+  overflow: auto;
+  height: 100%;
+}
+
+.rm-card {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+
+.rm-card header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.rm-card header strong {
+  flex: 1;
+}
+
+.rm-badge {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.rm-badge.rm-crashed {
+  background: color-mix(in srgb, var(--danger) 18%, transparent);
+  color: var(--danger);
+}
+
+.rm-badge.rm-paused {
+  background: color-mix(in srgb, var(--text-tertiary) 18%, transparent);
+  color: var(--text-secondary);
+}
+
+.rm-card dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 10px;
+  margin: 0;
+}
+
+.rm-card dt {
+  color: var(--text-secondary);
+}
+
+.rm-card dd {
+  margin: 0;
+  word-break: break-word;
+}
+
+.hint {
+  color: var(--text-tertiary);
+  font-size: 13px;
+}

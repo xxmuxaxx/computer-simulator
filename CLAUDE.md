@@ -6,13 +6,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Computer Simulator is a browser-based simulation of a personal computer: its own desktop, window
 manager, virtual file system, process manager, terminal shell, a virtual network, a fully virtual
-Internet built on top of it, and a handful of built-in applications (Files, Terminal, Text Editor,
-Task Manager, Settings, Network Manager, Network Monitor, Server Manager, Browser, Domain Manager,
-Hosting Manager, Website Builder, Virtual Search, Internet Control Panel, a demo "System Benchmark"
-app). All state is persisted locally via IndexedDB — there is no backend. It is a simulation, not
-an emulator: no real machine code execution, no real file system access, and no real networking —
-every device, packet, DNS lookup and HTTP request lives entirely inside `core/network` and
-`core/internet` (see "The virtual network" and "The Virtual Internet" below).
+Internet built on top of it, a sandboxed WASM application runtime, and a handful of built-in
+applications (Files, Terminal, Text Editor, Task Manager, Settings, Network Manager, Network
+Monitor, Server Manager, Browser, Domain Manager, Hosting Manager, Website Builder, Virtual
+Search, Internet Control Panel, Game Manager, Runtime Monitor, a demo "System Benchmark" app, and
+DOOM — a placeholder game proving the runtime end-to-end). All state is persisted locally via
+IndexedDB — there is no backend. It is a simulation, not an emulator: no real machine code
+execution, no real file system access, and no real networking — every device, packet, DNS lookup
+and HTTP request lives entirely inside `core/network` and `core/internet`, and every runtime
+application is sandboxed inside `core/runtime` (see "The virtual network", "The Virtual
+Internet" and "The Virtual Application & Game Runtime" below).
 
 ## Commands
 
@@ -68,18 +71,26 @@ src/
 │   │                              HTTPS certificates, a search engine and the Browser's own
 │   │                              profile, all built on core/network's public API (see "The
 │   │                              Virtual Internet" below). Zero dependency on React.
+│   ├── runtime/                    RuntimeManager — installs, sandboxes and runs WASM
+│   │                              applications (games first) as real ProcessManager processes
+│   │                              and WindowManager windows (see "The Virtual Application &
+│   │                              Game Runtime" below, and docs/runtime.md). Zero dependency
+│   │                              on React.
 │   └── computer/                  VirtualComputer — the composition root. Owns one instance of
-│                                   every core manager including NetworkManager and
-│                                   InternetManager, wires process↔memory↔window lifecycles
-│                                   together (killing a process closes its windows, closing a
-│                                   window frees its memory and kills its process, etc.), and
-│                                   exposes snapshot()/restore for persistence.
+│                                   every core manager including NetworkManager,
+│                                   InternetManager and RuntimeManager, wires process↔memory↔
+│                                   window lifecycles together (killing a process closes its
+│                                   windows, closing a window frees its memory and kills its
+│                                   process, etc.), and exposes snapshot()/restore for
+│                                   persistence.
 │
 ├── apps/                    One folder per application (files/, terminal/, editor/,
 │                              task-manager/, settings/, stress/, network-manager/,
 │                              network-monitor/, server-manager/, browser/, domain-manager/,
 │                              hosting-manager/, website-builder/, search/,
-│                              internet-control-panel/). Each app is a plain React component
+│                              internet-control-panel/, game-manager/, runtime-monitor/,
+│                              runtime/ [the generic RuntimeHostApp shared by every runtime
+│                              app, e.g. DOOM]). Each app is a plain React component
 │                              receiving `{ windowId, pid, args }` (src/apps/types.ts).
 │                              `src/apps/index.ts` is the single registration point.
 ├── desktop/                 React chrome: Desktop, WindowManager/WindowFrame (drag/resize/
@@ -123,8 +134,12 @@ minimized state (minimized windows' processes go to `sleeping`).
 `ComputerSnapshot` (`core/computer/snapshot.ts`, `SNAPSHOT_VERSION`) bundles the file system,
 settings, installed apps, window layout, the network snapshot and the internet snapshot (domains,
 DNS records, websites/API endpoints, certificates, the search index, and the Browser's own
-history/bookmarks/cookies). `AutoSaver` subscribes to the relevant observables (including
-`computer.network` and `computer.internet`) and debounce-saves via `ComputerStorage`,
+history/bookmarks/cookies). Installed runtime packages and game saves are **not** a separate
+snapshot field — they're ordinary files under `/apps/<id>/` and `/home/user/games/<id>/`, already
+covered by the `filesystem` key (see "The Virtual Application & Game Runtime" below); adding
+`RuntimeManager` did not bump `SNAPSHOT_VERSION`. `AutoSaver` subscribes to the relevant
+observables (including `computer.network` and `computer.internet`) and debounce-saves via
+`ComputerStorage`,
 which wraps a `StorageBackend` (IndexedDB in the browser, falling back to an in-memory backend —
 and marking the computer "volatile" with a notification — if IndexedDB is unavailable). On boot,
 `store/computerStore.ts` loads the last snapshot and restores windows by re-launching each app
@@ -228,6 +243,48 @@ operate on the Internet control plane (domains/DNS/websites/certificates are glo
 a specific device to "log into") — the same distinction `NetworkManager`'s cross-device
 `configureInterface`/`startService` already draws for the GUI apps.
 
+### The Virtual Application & Game Runtime
+
+`core/runtime/RuntimeManager.ts` (`computer.runtime`) is a fourth composition root, a peer of
+`NetworkManager`/`InternetManager`. It lets third-party WASM applications — games first — be
+installed, sandboxed and run as ordinary virtual processes/windows. Full design in
+`docs/runtime.md`; the key architectural invariant is: **a runtime-backed app is launched through
+the completely unmodified `computer.launch(appId)` path**, so `WindowManager`, `ProcessManager`
+and Task Manager needed zero changes to support it.
+
+- **Manifests** (`RuntimeManifest`: id/name/version/type/executable/permissions/display/...) are
+  installed by `RuntimeRegistry` as `/apps/<id>/manifest.json` + package files, written into the
+  *existing* `VirtualFileSystem` (no second persistence system) and locked down exactly like
+  `seedFileSystem()` locks `/apps/*.app` — briefly unlocking `/apps` for the duration of an
+  install/remove and always re-locking it afterwards.
+- **Launch**: an app whose `ApplicationDefinition.component` is the generic
+  `RuntimeHostApp` (`src/apps/runtime/RuntimeHostApp.tsx`) calls
+  `computer.runtime.attach(pid, windowId, appId)` on mount, which creates a sandboxed
+  `RuntimeInstance` for that pid and starts it.
+- **Sandbox**: `ApplicationRuntime.instantiate()` builds an explicit, minimal
+  `WebAssembly.Imports` object — no `fetch`, no DOM, no globals. A module only ever gets a
+  `RuntimeFileProvider` (scoped to `/home/user/games/<id>/`, permission-gated, can't escape its
+  root), a `RuntimeInput` snapshot (buffered keyboard/mouse, never a real event listener) and a
+  `RuntimeDisplay` frame buffer (`Uint8ClampedArray`, painted onto a `<canvas>` by
+  `RuntimeHostApp` — `core/` itself never touches the DOM `ImageData` type).
+- **Resource accounting** reuses the existing `Process` shape via a new, small
+  `ProcessManager.reportUsage(pid, { cpuUsage?, memoryUsage? })` method (mirrors `boost()`'s
+  spike but sets a sustained baseline) — Task Manager shows a runtime-hosted app like any other
+  process, no Task Manager changes needed.
+- **Lifecycle**: `starting → running ⇄ paused → stopped`, plus `crashed` on any thrown error
+  during a tick (a WASM trap, a failed instantiate, ...). Minimize/restore pauses/resumes
+  automatically, riding the same minimized→sleeping process-status sync `VirtualComputer.tick()`
+  already does. A crash posts a notification and stops the frame loop but **leaves the process
+  alive** — Task Manager and Runtime Monitor still see it — rather than auto-killing it.
+- DOOM (`core/runtime/doom/`) is the first proof case: a hand-assembled 217-byte placeholder WASM
+  module (`core/runtime/stub/generate.mjs`), not real id Software code or WAD data. The runtime
+  API is shaped so a real engine drops in later as a manifest + `.wasm` swap, no `core/runtime/`
+  changes required.
+
+New games/runtime-app terminal commands live in `core/shell/commands/games.ts` (`games
+list|install|run|stop|info|remove`), following the same single-command-with-subcommands style as
+`domain`/`dns`/`website` in `commands/internet.ts`.
+
 ### Adding an application
 
 Register an `ApplicationDefinition<AppComponent>` in `src/apps/index.ts` (id, icon, memory/cpu
@@ -250,7 +307,8 @@ to which commands exist — it only depends on the `CommandRegistry`.
 ### Errors
 
 Every expected failure (missing file, disk full, permission denied, unknown pid, host unreachable,
-connection refused, DNS lookup failed, blocked by firewall, ...) is a `SystemError` with a `code`
+connection refused, DNS lookup failed, blocked by firewall, a runtime sandbox permission denial,
+a WASM load/trap failure, ...) is a `SystemError` with a `code`
 (`core/errors.ts`) and a human-readable message. Shell commands catch these per-target (see
 `commands/helpers.ts`'s `forEachTarget`) so e.g. `rm a.txt b.txt` reports a partial failure instead
 of aborting; UI code funnels them through `computer.attempt()` / `computer.reportError()` into the

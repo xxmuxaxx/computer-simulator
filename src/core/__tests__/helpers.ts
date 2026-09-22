@@ -16,6 +16,26 @@ export function createComputer(overrides: Partial<ComputerOptions> = {}): Virtua
   return new VirtualComputer({ applications: createRegistry(), random: () => 0.5, ...overrides });
 }
 
+/** A registry that also has a 'doom' entry, for runtime/games tests that launch it. */
+export function createRegistryWithDoom(): ApplicationRegistry {
+  const registry = createRegistry();
+  registry.register({
+    id: 'doom',
+    name: 'DOOM',
+    icon: 'gamepad',
+    description: 'test doom app',
+    defaultWidth: 320,
+    defaultHeight: 200,
+    memoryUsage: 32,
+    component: null,
+  });
+  return registry;
+}
+
+export function createComputerWithDoom(overrides: Partial<ComputerOptions> = {}): VirtualComputer {
+  return createComputer({ applications: createRegistryWithDoom(), ...overrides });
+}
+
 export function createShell(computer = createComputer()): { shell: Shell; computer: VirtualComputer } {
   return { shell: new Shell(computer), computer };
 }

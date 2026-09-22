@@ -11,6 +11,7 @@ import { InternetManager } from '../internet/InternetManager';
 import { NetworkManager } from '../network/NetworkManager';
 import { NotificationCenter } from '../notifications/NotificationCenter';
 import { ProcessManager } from '../process/ProcessManager';
+import { RuntimeManager } from '../runtime/RuntimeManager';
 import { SettingsManager } from '../settings/SettingsManager';
 import { WindowManager } from '../windows/WindowManager';
 import type { Bounds } from '../windows/types';
@@ -74,6 +75,7 @@ export class VirtualComputer extends Observable {
   readonly notifications: NotificationCenter;
   readonly network: NetworkManager;
   readonly internet: InternetManager;
+  readonly runtime: RuntimeManager;
   readonly startedAt: number;
 
   private random: () => number;
@@ -111,6 +113,13 @@ export class VirtualComputer extends Observable {
       now: this.now,
       random: this.random,
       snapshot: snapshot?.internet,
+    });
+    this.runtime = new RuntimeManager({
+      fileSystem: this.fileSystem,
+      processManager: this.processManager,
+      notifications: this.notifications,
+      now: this.now,
+      random: this.random,
     });
 
     const allIds = this.applications.list().map((a) => a.id);

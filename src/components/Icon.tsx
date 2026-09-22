@@ -22,6 +22,7 @@ import {
   Folder,
   FolderOpen,
   FolderPlus,
+  Gamepad2,
   Globe,
   HardDrive,
   Home,
@@ -86,6 +87,7 @@ const ICONS: Record<string, LucideIcon> = {
   folder: Folder,
   'folder-open': FolderOpen,
   'folder-plus': FolderPlus,
+  gamepad: Gamepad2,
   disk: HardDrive,
   home: Home,
   info: Info,
@@ -160,6 +162,7 @@ const APP_TINTS: Record<string, string> = {
   'file-plus': 'linear-gradient(135deg,#f472b6,#db2777)',
   search: 'linear-gradient(135deg,#fbbf24,#d97706)',
   shield: 'linear-gradient(135deg,#818cf8,#4f46e5)',
+  gamepad: 'linear-gradient(135deg,#f87171,#b91c1c)',
 };
 
 export function AppIcon({ name, size = 40 }: { name: string; size?: number }) {

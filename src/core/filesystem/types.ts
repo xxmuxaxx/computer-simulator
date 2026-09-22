@@ -11,7 +11,8 @@ export interface FSNode {
   type: NodeType;
   /** Id of the parent directory. The root's parent is the empty string. */
   parentId: string;
-  content?: string;
+  /** Text files use a string; binary files (installed WASM apps, WADs, ...) use raw bytes. */
+  content?: string | Uint8Array;
   /** Bytes. For directories the stored value is 0; use getSize()/getStats() for the recursive size. */
   size: number;
   createdAt: number;

@@ -15,6 +15,9 @@ import { WebsiteBuilderApp } from './website-builder/WebsiteBuilderApp';
 import { DomainManagerApp } from './domain-manager/DomainManagerApp';
 import { SearchApp } from './search/SearchApp';
 import { InternetControlPanelApp } from './internet-control-panel/InternetControlPanelApp';
+import { GameManagerApp } from './game-manager/GameManagerApp';
+import { RuntimeHostApp } from './runtime/RuntimeHostApp';
+import { RuntimeMonitorApp } from './runtime-monitor/RuntimeMonitorApp';
 
 /**
  * Every application the desktop can launch, registered once at startup. Adding an
@@ -276,5 +279,55 @@ appRegistry.register({
   startupCpu: 12,
   processName: 'benchmark',
   component: StressApp,
+  category: 'demo',
+});
+
+appRegistry.register({
+  id: 'game-manager',
+  name: 'Game Manager',
+  icon: 'gamepad',
+  description: 'Install, launch and manage games built on the Virtual Application Runtime',
+  defaultWidth: 640,
+  defaultHeight: 480,
+  minWidth: 480,
+  minHeight: 360,
+  memoryUsage: 90,
+  cpuUsage: 1,
+  startupCpu: 4,
+  component: GameManagerApp,
+  system: true,
+  category: 'system',
+});
+
+appRegistry.register({
+  id: 'runtime-monitor',
+  name: 'Runtime Monitor',
+  icon: 'bug',
+  description: 'Live status of every running Virtual Application Runtime instance',
+  defaultWidth: 520,
+  defaultHeight: 480,
+  minWidth: 420,
+  minHeight: 360,
+  memoryUsage: 80,
+  cpuUsage: 1,
+  startupCpu: 3,
+  component: RuntimeMonitorApp,
+  system: true,
+  category: 'system',
+});
+
+appRegistry.register({
+  id: 'doom',
+  name: 'DOOM',
+  icon: 'gamepad',
+  description: 'A placeholder game engine proving the Virtual Application Runtime end-to-end',
+  defaultWidth: 660,
+  defaultHeight: 440,
+  minWidth: 400,
+  minHeight: 280,
+  memoryUsage: 32,
+  cpuUsage: 8,
+  startupCpu: 10,
+  component: RuntimeHostApp,
   category: 'demo',
 });

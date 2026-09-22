@@ -16,6 +16,7 @@ export const DEFAULT_TRASH_PATH = '/home/user/.trash';
 
 const encoder = new TextEncoder();
 const byteLength = (s: string): number => encoder.encode(s).length;
+const contentSize = (c: string | Uint8Array): number => (c instanceof Uint8Array ? c.byteLength : byteLength(c));
 
 function joinPath(dir: string, name: string): string {
   return dir === SEP ? SEP + name : dir + SEP + name;
@@ -104,7 +105,18 @@ export class VirtualFileSystem extends Observable {
   readFile(path: string): string {
     const node = this.getNode(path);
     if (node.type === 'directory') throw new SystemError('EISDIR', normalize(path));
+    if (node.content instanceof Uint8Array) {
+      throw new SystemError('EINVAL', normalize(path), 'Not a text file');
+    }
     return node.content ?? '';
+  }
+
+  /** Reads a file's raw bytes, whether it was written as text or binary. */
+  readBinary(path: string): Uint8Array {
+    const node = this.getNode(path);
+    if (node.type === 'directory') throw new SystemError('EISDIR', normalize(path));
+    if (node.content instanceof Uint8Array) return node.content;
+    return encoder.encode(node.content ?? '');
   }
 
   listDirectory(path: string): FileStats[] {
@@ -142,11 +154,11 @@ export class VirtualFileSystem extends Observable {
 
   // ───────────────────────────── mutations ─────────────────────────────
 
-  createFile(path: string, content = '', options: CreateFileOptions = {}): FileStats {
+  createFile(path: string, content: string | Uint8Array = '', options: CreateFileOptions = {}): FileStats {
     const { parent, name } = this.splitTarget(path);
     this.assertWritableDir(parent, path);
     if (this.childId(parent, name)) throw new SystemError('EEXIST', normalize(path));
-    const size = options.size ?? byteLength(content);
+    const size = options.size ?? contentSize(content);
     this.assertSpace(size, true);
     const node = this.insert(parent, name, 'file', content, size);
     this.emit();
@@ -196,6 +208,26 @@ export class VirtualFileSystem extends Observable {
     this.assertSpace(newSize - existing.size, false);
     this.usedBytes += newSize - existing.size;
     existing.content = next;
+    existing.size = newSize;
+    this.touch(existing);
+    this.emit();
+    return this.statsOf(existing);
+  }
+
+  /** Like `writeFile`, but for raw bytes (installed WASM apps, WAD/asset uploads, ...). */
+  writeBinary(path: string, data: Uint8Array, options: WriteOptions = {}): FileStats {
+    const { create = true } = options;
+    const existing = this.lookup(path);
+    if (!existing) {
+      if (!create) throw new SystemError('ENOENT', normalize(path));
+      return this.createFile(path, data);
+    }
+    if (existing.type === 'directory') throw new SystemError('EISDIR', normalize(path));
+    if (existing.readonly) throw new SystemError('EACCES', normalize(path));
+    const newSize = data.byteLength;
+    this.assertSpace(newSize - existing.size, false);
+    this.usedBytes += newSize - existing.size;
+    existing.content = data;
     existing.size = newSize;
     this.touch(existing);
     this.emit();
@@ -483,7 +515,7 @@ export class VirtualFileSystem extends Observable {
     parent: FSNode,
     name: string,
     type: FSNode['type'],
-    content: string | undefined,
+    content: string | Uint8Array | undefined,
     size: number,
   ): FSNode {
     const t = this.now();

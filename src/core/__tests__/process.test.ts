@@ -61,6 +61,23 @@ describe('ProcessManager', () => {
     pm.tick(() => 0.5);
     expect(pm.get(p.pid)).toMatchObject({ status: 'stopped', cpuUsage: 0 });
   });
+
+  it('reportUsage sets a sustained baseline that tick() jitters around', () => {
+    const pm = new ProcessManager();
+    const p = pm.spawn({ name: 'a', memoryUsage: 50, baseCpu: 1 });
+    pm.reportUsage(p.pid, { cpuUsage: 40, memoryUsage: 75 });
+    expect(pm.get(p.pid)?.cpuUsage).toBe(40);
+    expect(pm.get(p.pid)?.memoryUsage).toBe(75);
+    pm.tick(() => 0.5);
+    // baseCpu (not cpuUsage) is what tick() jitters around, so the reported baseline persists.
+    expect(pm.get(p.pid)?.cpuUsage).toBeCloseTo(40, 0);
+    expect(pm.get(p.pid)?.memoryUsage).toBe(75);
+  });
+
+  it('reportUsage is a no-op for an unknown pid', () => {
+    const pm = new ProcessManager();
+    expect(() => pm.reportUsage(9999, { cpuUsage: 10 })).not.toThrow();
+  });
 });
 
 describe('VirtualComputer processes', () => {

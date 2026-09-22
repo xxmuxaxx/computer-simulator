@@ -31,7 +31,10 @@ export type ErrorCode =
   | 'EDOMAINTAKEN'
   | 'ENODOMAIN'
   | 'ENOWEBSITE'
-  | 'ENOSERVICE';
+  | 'ENOSERVICE'
+  // Virtual Application Runtime errors
+  | 'EPERMISSION'
+  | 'ERUNTIME';
 
 const DEFAULT_MESSAGES: Record<ErrorCode, string> = {
   ENOENT: 'File not found',
@@ -65,6 +68,8 @@ const DEFAULT_MESSAGES: Record<ErrorCode, string> = {
   ENODOMAIN: 'No such domain',
   ENOWEBSITE: 'No such website',
   ENOSERVICE: 'No such service',
+  EPERMISSION: 'Permission denied by sandbox',
+  ERUNTIME: 'Runtime error',
 };
 
 /** Every expected failure of the virtual computer is a SystemError. */

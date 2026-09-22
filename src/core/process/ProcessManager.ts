@@ -144,6 +144,22 @@ export class ProcessManager extends Observable {
     p.spike = Math.max(p.spike, percent);
   }
 
+  /**
+   * Reports sustained, externally-measured usage for a process (e.g. a runtime-hosted
+   * application). Unlike `boost()`'s decaying spike, this sets the baseline that `tick()`
+   * jitters around every second, until the next report.
+   */
+  reportUsage(pid: number, usage: { cpuUsage?: number; memoryUsage?: number }): void {
+    const p = this.processes.get(pid);
+    if (!p) return;
+    if (usage.cpuUsage !== undefined) {
+      p.baseCpu = clamp(usage.cpuUsage, 0, 100);
+      if (p.status === 'running') p.cpuUsage = round1(clamp(p.baseCpu + p.spike, 0, 100));
+    }
+    if (usage.memoryUsage !== undefined) p.memoryUsage = Math.max(0, usage.memoryUsage);
+    this.emit();
+  }
+
   onExit(listener: ExitListener): () => void {
     this.exitListeners.add(listener);
     return () => {
