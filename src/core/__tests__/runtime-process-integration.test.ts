@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createComputerWithDoom, installStubGame } from './helpers';
+import { VirtualComputer } from '../computer/VirtualComputer';
+import { createComputerWithDoom, createRegistryWithDoom, installStubGame } from './helpers';
 
 // The real runtime loop drives itself with requestAnimationFrame, which doesn't exist in the
 // Node test environment. Stub it to a no-op that never fires - tests drive frames deterministically
@@ -92,5 +93,49 @@ describe('runtime-backed applications integrate with the ordinary process/window
 
     expect(pc.processManager.has(pid)).toBe(false);
     expect(pc.runtime.get(pid)).toBeUndefined();
+  });
+
+  it('installing a game makes it launchable for a returning user whose saved snapshot predates that app (regression: installedApps only auto-includes every app on a brand new computer - a returning user\'s saved snapshot only carries what it already had, so computer.launch() refused with ENOAPP even though the game package itself installed fine)', () => {
+    const registry = createRegistryWithDoom();
+    const fresh = new VirtualComputer({ applications: registry, random: () => 0.5 });
+    const snapshot = fresh.snapshot();
+    // Simulate an existing user's snapshot, saved back when 'doom' wasn't a registered app yet.
+    const staleSnapshot = { ...snapshot, installedApps: snapshot.installedApps.filter((id) => id !== 'doom') };
+    const pc = new VirtualComputer({ applications: registry, snapshot: staleSnapshot, random: () => 0.5 });
+    expect(pc.installedApps.has('doom')).toBe(false);
+    expect(() => pc.launch('doom')).toThrowError('DOOM is not installed');
+
+    installStubGame(pc.runtime);
+
+    expect(pc.installedApps.has('doom')).toBe(true);
+    expect(() => pc.launch('doom')).not.toThrow();
+  });
+
+  it('a game whose package is already installed but whose installedApps fell out of sync is repaired on boot, with no install() call needed (regression: this is the exact state a user got stuck in - DOOM already showed as installed in Game Manager, "Play" still failed with "DOOM is not installed")', () => {
+    const registry = createRegistryWithDoom();
+    const seed = createComputerWithDoom();
+    installStubGame(seed.runtime);
+    const snapshot = seed.snapshot();
+    // Simulate exactly the reported stuck state: the runtime package is installed (present in
+    // the filesystem snapshot) but installedApps wasn't carrying it (as could happen before this
+    // reconciliation existed, or from any other cause of the two falling out of sync).
+    const desyncedSnapshot = { ...snapshot, installedApps: snapshot.installedApps.filter((id) => id !== 'doom') };
+    const pc = new VirtualComputer({ applications: registry, snapshot: desyncedSnapshot, random: () => 0.5 });
+
+    // No install()/uninstall() call here - RuntimeManager's constructor alone must fix this.
+    expect(pc.runtime.registry.get('doom')).toBeDefined();
+    expect(pc.installedApps.has('doom')).toBe(true);
+    expect(() => pc.launch('doom')).not.toThrow();
+  });
+
+  it('removing a game also removes it from the launcher-level installed apps', () => {
+    const pc = createComputerWithDoom();
+    installStubGame(pc.runtime);
+    expect(pc.installedApps.has('doom')).toBe(true);
+
+    pc.runtime.uninstall('doom');
+
+    expect(pc.installedApps.has('doom')).toBe(false);
+    expect(() => pc.launch('doom')).toThrowError('DOOM is not installed');
   });
 });

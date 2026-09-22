@@ -1,5 +1,6 @@
 import { SystemError } from '../errors';
 import { Observable } from '../../utils/Observable';
+import type { InstalledApplications } from '../applications/InstalledApplications';
 import type { VirtualFileSystem } from '../filesystem/VirtualFileSystem';
 import type { NotificationCenter } from '../notifications/NotificationCenter';
 import type { ProcessManager } from '../process/ProcessManager';
@@ -13,6 +14,9 @@ export interface RuntimeManagerOptions {
   fileSystem: VirtualFileSystem;
   processManager: ProcessManager;
   notifications: NotificationCenter;
+  /** Installing/removing a runtime package also keeps this in sync (see RuntimeManager.install),
+   * so `computer.launch(id)` works right after installing without a separate launcher-level step. */
+  installedApps: InstalledApplications;
   now?: () => number;
   random?: () => number;
   /** Overridable for headless tests; defaults to requestAnimationFrame. */
@@ -36,6 +40,7 @@ export class RuntimeManager extends Observable {
   private fs: VirtualFileSystem;
   private processManager: ProcessManager;
   private notifications: NotificationCenter;
+  private installedApps: InstalledApplications;
   private now: () => number;
   private random: () => number;
   private scheduleFrame?: (cb: (ts: number) => void) => number;
@@ -48,11 +53,18 @@ export class RuntimeManager extends Observable {
     this.fs = options.fileSystem;
     this.processManager = options.processManager;
     this.notifications = options.notifications;
+    this.installedApps = options.installedApps;
     this.now = options.now ?? Date.now;
     this.random = options.random ?? Math.random;
     this.scheduleFrame = options.scheduleFrame;
     this.cancelFrame = options.cancelFrame;
     this.registry = new RuntimeRegistry(this.fs);
+
+    // Self-heals a computer whose installedApps fell out of sync with an already-installed
+    // runtime package before this reconciliation existed (see docs/runtime.md's "Installation"
+    // section) - every package the registry already knows about is guaranteed launchable from
+    // the moment RuntimeManager exists, not just from the next install()/uninstall() call.
+    for (const manifest of this.registry.list()) this.installedApps.install(manifest.id);
 
     this.processManager.onExit((p) => this.dispose(p.pid));
   }
@@ -69,6 +81,10 @@ export class RuntimeManager extends Observable {
       if (instance.appId === manifest.id) this.processManager.kill(instance.pid);
     }
     this.registry.install(manifest, files);
+    // Keep the launcher-level "installed apps" list in sync with the runtime package: without
+    // this, computer.launch(id) refuses with ENOAPP for anyone whose saved installedApps
+    // predates this app being registered (it's only auto-added for a brand new computer).
+    this.installedApps.install(manifest.id);
     this.events.emit('manifest:installed', { appId: manifest.id });
     this.emit();
   }
@@ -78,6 +94,7 @@ export class RuntimeManager extends Observable {
       if (instance.appId === id) this.processManager.kill(instance.pid);
     }
     this.registry.remove(id);
+    this.installedApps.uninstall(id);
     this.events.emit('manifest:removed', { appId: id });
     this.emit();
   }

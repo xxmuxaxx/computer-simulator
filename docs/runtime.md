@@ -235,6 +235,23 @@ stub's are a tiny embedded base64 constant (`installDoom` for the stub-era code 
 first. There is no separate "package" file format in this pass (spec's `doom.package` concept) -
 a manifest object plus a map of file bytes is the installation unit.
 
+There are two separate "installed" concepts that both have to say yes before `computer.launch(id)`
+works: `RuntimeRegistry` (does the package - manifest + wasm - exist under `/apps/<id>/`) and
+`InstalledApplications` (is this app id in the launcher's installed list, the thing
+`VirtualComputer.launch()` actually gate-checks). `RuntimeManager.install()`/`uninstall()` keep
+both in sync automatically (`this.installedApps.install(manifest.id)` /
+`.uninstall(id)`) - **this matters because `InstalledApplications` is only auto-seeded with every
+registered app id on a brand new computer** (`VirtualComputer`'s constructor: `snapshot ?
+[...snapshot.installedApps, ...systemIds] : allIds`). A returning user's saved snapshot only ever
+carries what it already had, so before this wiring existed, installing a runtime package for a
+user whose snapshot predated that app being registered left it installed-but-unlaunchable
+(`computer.launch()` throwing `ENOAPP`) with no way to fix it from the UI - a real bug caught
+after shipping, not just a hypothetical.
+`RuntimeRegistry.install()` also self-heals rather than throwing `EEXIST`: it checks
+`fs.exists(dir)` directly and always wipes+replaces, so a package directory left in a broken state
+by an older manifest schema, a partial previous install, or anything else can never get install()
+stuck - reinstalling repairs it instead of failing.
+
 ## Application registration
 
 ```ts
