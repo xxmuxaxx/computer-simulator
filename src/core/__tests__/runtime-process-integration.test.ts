@@ -79,4 +79,18 @@ describe('runtime-backed applications integrate with the ordinary process/window
     const { windowId, pid } = pc.launch('doom');
     expect(() => pc.runtime.attach(pid, windowId, 'doom')).toThrowError('No runtime manifest installed');
   });
+
+  it('reinstalling a currently-running game kills its process instead of leaving a dangling instance', async () => {
+    const pc = createComputerWithDoom();
+    installStubGame(pc.runtime);
+    const { windowId, pid } = pc.launch('doom');
+    const instance = pc.runtime.attach(pid, windowId, 'doom');
+    await instance.start();
+    expect(pc.processManager.has(pid)).toBe(true);
+
+    installStubGame(pc.runtime); // reinstall over the same id while it's running
+
+    expect(pc.processManager.has(pid)).toBe(false);
+    expect(pc.runtime.get(pid)).toBeUndefined();
+  });
 });

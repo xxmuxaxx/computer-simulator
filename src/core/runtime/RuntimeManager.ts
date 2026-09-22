@@ -62,6 +62,12 @@ export class RuntimeManager extends Observable {
   }
 
   install(manifest: RuntimeManifest, files: Record<string, Uint8Array>): void {
+    // install() can reinstall/repair over an existing package (see RuntimeRegistry.install) - if
+    // that package happens to be running right now, kill it first rather than leaving a live
+    // instance pointing at files that are about to be replaced out from under it.
+    for (const instance of this.instances.values()) {
+      if (instance.appId === manifest.id) this.processManager.kill(instance.pid);
+    }
     this.registry.install(manifest, files);
     this.events.emit('manifest:installed', { appId: manifest.id });
     this.emit();

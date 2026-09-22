@@ -42,10 +42,21 @@ export class RuntimeRegistry {
     return this.list().find((m) => m.id === id);
   }
 
+  /**
+   * Installs (or reinstalls/repairs) a package. Deliberately does **not** gate on `get(id)` -
+   * that depends on the existing manifest still being parseable, and a package directory can be
+   * left behind in a broken state (a stale schema from before a manifest field was added, a
+   * partial previous install, ...). Detecting "already there" from `fs.exists(dir)` directly and
+   * always wiping+replacing means installing is idempotent and self-healing: there's no state a
+   * broken `/apps/<id>/` can get stuck in that "Install" can't recover from.
+   */
   install(manifest: RuntimeManifest, files: Record<string, Uint8Array>): void {
-    if (this.get(manifest.id)) throw new SystemError('EEXIST', manifest.id, 'Already installed');
     const dir = `${APPS_ROOT}/${manifest.id}`;
     this.withUnlockedApps(() => {
+      if (this.fs.exists(dir)) {
+        this.fs.setAttributes(dir, { readonly: false, protected: false });
+        this.fs.delete(dir, { recursive: true });
+      }
       this.fs.createDirectory(dir, { recursive: true });
       this.fs.writeFile(`${dir}/manifest.json`, serializeManifest(manifest));
       for (const [name, bytes] of Object.entries(files)) {

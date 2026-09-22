@@ -49,12 +49,37 @@ describe('RuntimeRegistry', () => {
     expect(registry.get('missing')).toBeUndefined();
   });
 
-  it('refuses to install the same id twice', () => {
+  it('reinstalling the same id replaces its files rather than throwing', () => {
     const fs = new VirtualFileSystem();
     seedFileSystem(fs, []);
     const registry = new RuntimeRegistry(fs);
     registry.install(manifest(), { 'doom.wasm': new Uint8Array([1]) });
-    expect(() => registry.install(manifest(), { 'doom.wasm': new Uint8Array([1]) })).toThrowError('Already installed');
+    registry.install(manifest({ version: '2.0.0' }), { 'doom.wasm': new Uint8Array([9, 9]) });
+
+    expect(registry.get('doom')?.version).toBe('2.0.0');
+    expect(fs.readBinary('/apps/doom/doom.wasm')).toEqual(new Uint8Array([9, 9]));
+    expect(fs.getStats('/apps').readonly).toBe(true);
+  });
+
+  it('installing over a corrupted/unparseable existing package repairs it instead of getting stuck (regression: a stale manifest missing a newer required field made install() throw EACCES trying to overwrite a still-locked file, with no visible way to remove it)', () => {
+    const fs = new VirtualFileSystem();
+    seedFileSystem(fs, []);
+    const registry = new RuntimeRegistry(fs);
+    // Simulate a package left behind by an older schema: present on disk, locked, but its
+    // manifest doesn't parse under the current schema - so list()/get() can't see it at all.
+    fs.setAttributes('/apps', { readonly: false });
+    fs.createDirectory('/apps/doom');
+    fs.writeFile('/apps/doom/manifest.json', '{ "id": "doom", "name": "old" }');
+    fs.setAttributes('/apps/doom/manifest.json', { readonly: true });
+    fs.setAttributes('/apps/doom', { readonly: true, protected: true });
+    fs.setAttributes('/apps', { readonly: true });
+    expect(registry.get('doom')).toBeUndefined(); // invisible, per the corrupted-manifest skip
+
+    expect(() => registry.install(manifest(), { 'doom.wasm': new Uint8Array([1, 2]) })).not.toThrow();
+
+    expect(registry.get('doom')?.name).toBe('DOOM');
+    expect(fs.readBinary('/apps/doom/doom.wasm')).toEqual(new Uint8Array([1, 2]));
+    expect(fs.getStats('/apps').readonly).toBe(true);
   });
 
   it('removes a package and re-locks /apps afterwards', () => {
