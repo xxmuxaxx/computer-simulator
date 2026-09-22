@@ -1,5 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { DOOM_APP_ID, DOOM_WAD_RELATIVE_PATH, hasWad, installDoom, isValidWadHeader } from '../../core/runtime/doom/DoomRuntimeAdapter';
+import {
+  DOOM_APP_ID,
+  DOOM_WAD_RELATIVE_PATH,
+  hasWad,
+  installDoom,
+  installDoomFromBytes,
+  isValidWadHeader,
+} from '../../core/runtime/doom/DoomRuntimeAdapter';
 import type { RuntimeInstance } from '../../core/runtime/RuntimeInstance';
 import { useComputer } from '../../hooks/useComputer';
 import { useWindow } from '../../hooks/useObservable';
@@ -79,6 +86,19 @@ export function RuntimeHostApp({ windowId, pid }: AppProps) {
     }
   };
 
+  const uploadEngine = async (file: File) => {
+    setInstalling(true);
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      installDoomFromBytes(computer.runtime, bytes);
+      attach();
+    } catch (e) {
+      computer.reportError(e);
+    } finally {
+      setInstalling(false);
+    }
+  };
+
   const restart = () => {
     const fresh = computer.attempt(() => computer.runtime.restart(pid));
     if (fresh) {
@@ -119,9 +139,28 @@ export function RuntimeHostApp({ windowId, pid }: AppProps) {
         <p>Game data not found.</p>
         <p className="hint">This application hasn't been installed yet.</p>
         {appId === DOOM_APP_ID ? (
-          <button className="btn btn-primary" disabled={installing} onClick={() => void install()}>
-            {installing ? 'Installing…' : 'Install DOOM'}
-          </button>
+          <div className="runtime-install-actions">
+            <div className="runtime-install-row">
+              <button className="btn btn-primary" disabled={installing} onClick={() => void install()}>
+                {installing ? 'Installing…' : 'Install DOOM'}
+              </button>
+              <label className={`btn${installing ? ' btn-disabled' : ''}`}>
+                Upload engine file…
+                <input
+                  type="file"
+                  accept=".wasm"
+                  hidden
+                  disabled={installing}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = '';
+                    if (file) void uploadEngine(file);
+                  }}
+                />
+              </label>
+            </div>
+            <p className="hint">No local copy found? Upload the doom.wasm file yourself instead.</p>
+          </div>
         ) : (
           <p className="hint">Install it from Game Manager first.</p>
         )}

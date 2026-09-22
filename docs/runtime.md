@@ -235,6 +235,21 @@ stub's are a tiny embedded base64 constant (`installDoom` for the stub-era code 
 first. There is no separate "package" file format in this pass (spec's `doom.package` concept) -
 a manifest object plus a map of file bytes is the installation unit.
 
+**The engine can also be supplied at runtime, not only at build/deploy time.** `fetch()`ing
+`public/runtime/doom/doom.wasm` only ever works for a local dev checkout with that file manually
+placed - a deployed build (e.g. GitHub Pages, which this project deploys to) never publishes it
+(it's gitignored, a third-party GPL binary this repo doesn't vendor), so there'd be nothing to
+fetch. `DoomRuntimeAdapter.installDoomFromBytes(runtime, bytes)` installs from an already-obtained
+`Uint8Array` instead - both Game Manager's "Upload file…" control and `RuntimeHostApp`'s
+not-installed screen expose this as a file picker, so *any* deployment can be given the engine by
+the player directly, the same way a legally obtained WAD already works. Both paths validate the
+bytes actually start with the WASM magic header (`isValidWasmHeader()`) before ever writing
+anything - and `fetchDoomEngineBytes()` applies the same check to its `fetch()` response, because a
+dev server's SPA fallback (or any static host with one) answers a missing path with `200 OK` and
+its `index.html` rather than a 404; without validating the *content*, that HTML was silently
+accepted as if it were the engine and only failed later, confusingly, inside
+`WebAssembly.instantiate()`.
+
 There are two separate "installed" concepts that both have to say yes before `computer.launch(id)`
 works: `RuntimeRegistry` (does the package - manifest + wasm - exist under `/apps/<id>/`) and
 `InstalledApplications` (is this app id in the launcher's installed list, the thing
@@ -311,6 +326,12 @@ interface - 10 imports, 4 exports, one exported memory - documented in the proje
   `fs:write`) is caught and reported as "0 bytes", matching the engine's own documented contract
   for "saving isn't supported" rather than throwing.
 - `console.onInfoMessage` / `onErrorMessage` - forwarded to the browser console via `EngineHost.log`.
+
+**No audio.** This engine's interface has no sound-related import at all - that's part of why it
+was chosen (a deliberately minimal 10-import surface vs. 250+ for ports that do include audio).
+Adding sound would mean either switching to a much larger/more complex engine (undoing the reason
+this one was picked) or building doom.wasm from source with a custom sound backend, which needs
+Docker and the WASI SDK toolchain that this environment doesn't have.
 
 Keys are mapped from `KeyboardEvent.key` to doom.wasm's numeric `doomKey` values: named keys
 (arrows, Ctrl→fire, Space→use, Shift/Tab/Escape/Enter/Backspace/Alt) are matched against the

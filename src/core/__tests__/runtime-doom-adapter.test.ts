@@ -1,7 +1,20 @@
 import { describe, expect, it, vi } from 'vitest';
 import { VirtualFileSystem } from '../filesystem/VirtualFileSystem';
 import { createDoomEngineAdapter } from '../runtime/doom/DoomEngineAdapter';
-import { createDoomManifest, DOOM_WAD_RELATIVE_PATH, isValidWadHeader } from '../runtime/doom/DoomRuntimeAdapter';
+import {
+  createDoomManifest,
+  DOOM_WAD_RELATIVE_PATH,
+  fetchDoomEngineBytes,
+  installDoom,
+  installDoomFromBytes,
+  isValidWadHeader,
+  isValidWasmHeader,
+} from '../runtime/doom/DoomRuntimeAdapter';
+import { RuntimeManager } from '../runtime/RuntimeManager';
+import { NotificationCenter } from '../notifications/NotificationCenter';
+import { ProcessManager } from '../process/ProcessManager';
+import { InstalledApplications } from '../applications/InstalledApplications';
+import { decodeStubDoomWasm } from '../runtime/stub/stub-doom-bytes';
 import type { EngineHost } from '../runtime/engines/types';
 import { RuntimeDisplay } from '../runtime/RuntimeDisplay';
 import { RuntimeFileProvider } from '../runtime/RuntimeFileProvider';
@@ -83,6 +96,81 @@ describe('isValidWadHeader', () => {
     expect(isValidWadHeader(new Uint8Array(32))).toBe(false);
     expect(isValidWadHeader(new Uint8Array([73, 87, 65]))).toBe(false); // "IWA", too short
     expect(isValidWadHeader(new Uint8Array(0))).toBe(false);
+  });
+});
+
+describe('isValidWasmHeader', () => {
+  it('accepts the real WASM magic bytes', () => {
+    expect(isValidWasmHeader(decodeStubDoomWasm())).toBe(true);
+    expect(isValidWasmHeader(new Uint8Array([0x00, 0x61, 0x73, 0x6d, 1, 2]))).toBe(true);
+  });
+
+  it('rejects anything else, including short or empty buffers', () => {
+    expect(isValidWasmHeader(new Uint8Array([73, 87, 65, 68]))).toBe(false); // "IWAD"
+    expect(isValidWasmHeader(new Uint8Array([0x00, 0x61, 0x73]))).toBe(false); // too short
+    expect(isValidWasmHeader(new Uint8Array(0))).toBe(false);
+  });
+});
+
+describe('installDoomFromBytes', () => {
+  function makeManager(): RuntimeManager {
+    return new RuntimeManager({
+      fileSystem: new VirtualFileSystem(),
+      processManager: new ProcessManager(),
+      notifications: new NotificationCenter(),
+      installedApps: new InstalledApplications(),
+    });
+  }
+
+  it('installs a well-formed uploaded engine binary', () => {
+    const runtime = makeManager();
+    expect(() => installDoomFromBytes(runtime, decodeStubDoomWasm())).not.toThrow();
+    expect(runtime.registry.get('doom')?.name).toBe('DOOM');
+  });
+
+  it('refuses an upload that is not a WASM module, before ever touching the registry', () => {
+    const runtime = makeManager();
+    expect(() => installDoomFromBytes(runtime, new Uint8Array([1, 2, 3, 4]))).toThrowError('not a valid WebAssembly module');
+    expect(runtime.registry.get('doom')).toBeUndefined();
+  });
+});
+
+describe('fetchDoomEngineBytes / installDoom', () => {
+  function makeManager(): RuntimeManager {
+    return new RuntimeManager({
+      fileSystem: new VirtualFileSystem(),
+      processManager: new ProcessManager(),
+      notifications: new NotificationCenter(),
+      installedApps: new InstalledApplications(),
+    });
+  }
+
+  function htmlResponse(): Response {
+    return new Response('<!doctype html><html>...</html>', { status: 200, headers: { 'content-type': 'text/html' } });
+  }
+
+  it('accepts a real WASM response', async () => {
+    const bytes = decodeStubDoomWasm();
+    const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+    const fetchImpl = vi.fn().mockResolvedValue(new Response(buffer, { status: 200 }));
+    await expect(fetchDoomEngineBytes(fetchImpl)).resolves.toEqual(bytes);
+  });
+
+  it('rejects a 200 OK response whose body is not actually WASM (regression: a dev server\'s SPA fallback answers a missing static file with 200 + index.html instead of a 404, which was silently accepted and wrote HTML into the VFS as "doom.wasm")', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(htmlResponse());
+    await expect(fetchDoomEngineBytes(fetchImpl)).rejects.toThrow('not a WASM module');
+  });
+
+  it('installDoom() surfaces the same rejection and never installs a broken package', async () => {
+    const runtime = makeManager();
+    const fetchImpl = vi.fn().mockResolvedValue(htmlResponse());
+    await expect(installDoom(runtime, fetchImpl)).rejects.toThrow('not a WASM module');
+    expect(runtime.registry.get('doom')).toBeUndefined();
+  });
+
+  it('rejects a non-ok HTTP response with a clear message', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(new Response('nope', { status: 404 }));
+    await expect(fetchDoomEngineBytes(fetchImpl)).rejects.toThrow('not found (HTTP 404)');
   });
 });
 

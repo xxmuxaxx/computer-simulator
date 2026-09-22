@@ -80,3 +80,29 @@
   color: var(--text-tertiary);
   font-size: 13px;
 }
+
+.gm-available-row {
+  cursor: default;
+  align-items: flex-start;
+}
+
+.gm-upload-hint {
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.gm-available-row .gm-row-actions {
+  align-items: center;
+  padding-top: 2px;
+}
+
+.gm-available-row label.btn {
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-disabled,
+.gm-available-row label.btn:has(input:disabled) {
+  opacity: 0.5;
+  pointer-events: none;
+}

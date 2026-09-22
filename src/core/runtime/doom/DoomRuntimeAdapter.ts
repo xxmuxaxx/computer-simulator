@@ -56,7 +56,27 @@ export function isValidWadHeader(bytes: Uint8Array): boolean {
   return WAD_MAGIC.includes(new TextDecoder('ascii').decode(bytes.slice(0, 4)));
 }
 
-/** Fetches the engine binary. Overridable so tests never need the real ~4.5 MB file on disk. */
+const WASM_MAGIC = [0x00, 0x61, 0x73, 0x6d]; // "\0asm"
+
+/** Minimal sanity check: every WASM binary starts with this 4-byte magic. Doesn't (can't) verify
+ * it's specifically *this* engine's interface - WebAssembly.instantiate() is what actually proves
+ * that, the first time the module is started - but it catches an obviously-wrong upload (a WAD, an
+ * HTML error page saved as .wasm, ...) before it's ever written into the VFS. */
+export function isValidWasmHeader(bytes: Uint8Array): boolean {
+  return bytes.byteLength >= 4 && WASM_MAGIC.every((b, i) => bytes[i] === b);
+}
+
+/**
+ * Fetches the engine binary. Overridable so tests never need the real ~4.5 MB file on disk.
+ *
+ * Validates the response is actually a WASM module before accepting it, not just that the HTTP
+ * request succeeded - a dev server (or any static host with an SPA fallback) commonly answers a
+ * missing path with `200 OK` and its `index.html` instead of a 404, so `response.ok` alone can't
+ * tell "the file exists" from "the file is missing and I got the app shell back instead". Without
+ * this check that HTML would get written into the VFS as `doom.wasm` and only fail later, deep
+ * inside `WebAssembly.instantiate()`, as a confusing "the game just crashed" instead of a clear
+ * "the engine file wasn't found" at install time.
+ */
 export async function fetchDoomEngineBytes(fetchImpl: typeof fetch = fetch): Promise<Uint8Array> {
   let response: Response;
   try {
@@ -67,15 +87,36 @@ export async function fetchDoomEngineBytes(fetchImpl: typeof fetch = fetch): Pro
   if (!response.ok) {
     throw runtimeError(
       DOOM_WASM_URL,
-      `DOOM engine file not found (HTTP ${response.status}). See public/runtime/doom/README.md for how to obtain it.`,
+      `DOOM engine file not found (HTTP ${response.status}). See public/runtime/doom/README.md for how to obtain it, or upload it directly.`,
     );
   }
-  return new Uint8Array(await response.arrayBuffer());
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  if (!isValidWasmHeader(bytes)) {
+    throw runtimeError(
+      DOOM_WASM_URL,
+      'The response at that path is not a WASM module (likely missing - see public/runtime/doom/README.md, or upload it directly).',
+    );
+  }
+  return bytes;
 }
 
-/** One-call installer: `await installDoom(computer.runtime)`. */
+/** One-call installer that fetches the engine from the static asset path: `await installDoom(computer.runtime)`. */
 export async function installDoom(runtime: RuntimeManager, fetchImpl: typeof fetch = fetch): Promise<void> {
   const bytes = await fetchDoomEngineBytes(fetchImpl);
+  runtime.install(createDoomManifest(), { 'doom.wasm': bytes });
+}
+
+/**
+ * Installs DOOM from an already-obtained engine binary (e.g. a file the player picked through a
+ * "Upload engine file" control) instead of fetching it from the static asset path. This is what
+ * makes the engine choosable at runtime rather than only at build/deploy time - the static-asset
+ * path in `installDoom()` works for a local dev checkout with the file manually placed, but has
+ * nothing to fetch on a deployed build (e.g. GitHub Pages) where that file was never published.
+ */
+export function installDoomFromBytes(runtime: RuntimeManager, bytes: Uint8Array): void {
+  if (!isValidWasmHeader(bytes)) {
+    throw runtimeError(undefined, 'This file is not a valid WebAssembly module (missing the WASM header).');
+  }
   runtime.install(createDoomManifest(), { 'doom.wasm': bytes });
 }
 
