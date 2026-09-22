@@ -1,7 +1,8 @@
 import type { NotificationCenter } from '../notifications/NotificationCenter';
 import type { ProcessManager } from '../process/ProcessManager';
 import type { VirtualFileSystem } from '../filesystem/VirtualFileSystem';
-import { instantiate, tick as tickModule, type LoadedModule } from './ApplicationRuntime';
+import { instantiate, tick as tickModule } from './ApplicationRuntime';
+import { resolveEngineAdapter, type EngineAdapter, type EngineHost } from './engines';
 import { RuntimeDisplay } from './RuntimeDisplay';
 import { RuntimeFileProvider } from './RuntimeFileProvider';
 import { RuntimeInput } from './RuntimeInput';
@@ -29,8 +30,9 @@ export interface RuntimeInstanceOptions {
 
 /**
  * A single running (or crashed/stopped) instance of a runtime application. Owns the sandboxed
- * WASM module plus its display/input/file/resource handles, and drives the update/render loop.
- * Never touches React or the DOM beyond the frame buffer it exposes through `display`.
+ * WASM module plus its display/input/file/resource handles, and drives the tick loop through
+ * whichever `EngineAdapter` matches its manifest's `engine` field. Never touches React or the
+ * DOM beyond the frame buffer it exposes through `display`.
  */
 export class RuntimeInstance {
   readonly id: string;
@@ -44,13 +46,14 @@ export class RuntimeInstance {
   readonly startedAt: number;
 
   private permissions: Set<RuntimePermission>;
+  private adapter: EngineAdapter;
   private resources: RuntimeResourceManager;
   private processManager: ProcessManager;
   private notifications: NotificationCenter;
   private events: RuntimeEventBus;
   private now: () => number;
   private wasmBytes: Uint8Array;
-  private module: LoadedModule | null = null;
+  private loaded = false;
   private _state: RuntimeState = 'starting';
   private _wasmStatus: 'loading' | 'loaded' | 'error' = 'loading';
   private lastError: string | undefined;
@@ -84,6 +87,19 @@ export class RuntimeInstance {
     this.lastTickAt = this.startedAt;
     this.scheduleFrame = options.scheduleFrame ?? ((cb) => requestAnimationFrame(cb));
     this.cancelFrame = options.cancelFrame ?? ((h) => cancelAnimationFrame(h));
+
+    const host: EngineHost = {
+      fileProvider: this.fileProvider,
+      input: this.input,
+      display: this.display,
+      now: this.now,
+      log: (level, message) => {
+        const line = `[runtime:${this.appId}] ${message}`;
+        if (level === 'error') console.error(line);
+        else console.info(line);
+      },
+    };
+    this.adapter = resolveEngineAdapter(options.manifest.engine, host);
   }
 
   get state(): RuntimeState {
@@ -97,8 +113,8 @@ export class RuntimeInstance {
   /** Loads the WASM module and starts the frame loop. Errors transition to 'crashed', never throw. */
   async start(): Promise<void> {
     try {
-      const module = await instantiate(this.wasmBytes, { getInput: () => this.input.packed() });
-      this.module = module;
+      await instantiate(this.wasmBytes, this.adapter);
+      this.loaded = true;
       this._wasmStatus = 'loaded';
       this._state = 'running';
       this.lastTickAt = this.now();
@@ -135,8 +151,26 @@ export class RuntimeInstance {
   /** Advances one frame synchronously, bypassing the rAF loop - used by the host component when
    * driving its own paint cadence, and by tests via a no-op scheduler. */
   tickOnce(): void {
-    if (this._state !== 'running' || !this.module) return;
+    if (this._state !== 'running' || !this.loaded) return;
     this.frame();
+  }
+
+  /** Forwards a keyboard event (`KeyboardEvent.key`) into the engine, if permitted. */
+  reportKeyDown(key: string): void {
+    if (!this.permissions.has('input:keyboard')) return;
+    this.input.pushKey(key, true);
+    this.adapter.handleKeyDown?.(key);
+  }
+
+  reportKeyUp(key: string): void {
+    if (!this.permissions.has('input:keyboard')) return;
+    this.input.pushKey(key, false);
+    this.adapter.handleKeyUp?.(key);
+  }
+
+  reportMouseMove(x: number, y: number, buttons: number): void {
+    if (!this.permissions.has('input:mouse')) return;
+    this.input.pushMouse(x, y, buttons);
   }
 
   info(): RuntimeInstanceInfo {
@@ -163,7 +197,8 @@ export class RuntimeInstance {
   private loop(): void {
     this.frameHandle = this.scheduleFrame(() => {
       if (this._state !== 'running') return;
-      this.frame();
+      const interval = this.adapter.preferredTickIntervalMs;
+      if (!interval || this.now() - this.lastTickAt >= interval) this.frame();
       this.loop();
     });
   }
@@ -176,12 +211,12 @@ export class RuntimeInstance {
   }
 
   private frame(): void {
-    if (!this.module) return;
+    if (!this.loaded) return;
     const t = this.now();
     const dt = t - this.lastTickAt;
     this.lastTickAt = t;
     try {
-      tickModule(this.module, dt, this.display.getFrameBuffer(), this.display.width, this.display.height);
+      tickModule(this.adapter, dt);
       this.resources.recordFrame();
       const usage = this.resources.sample();
       this.processManager.reportUsage(this.pid, usage);

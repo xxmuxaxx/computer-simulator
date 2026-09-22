@@ -1,9 +1,25 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { decodeStubDoomWasm } from '../runtime/stub/stub-doom-bytes';
 import { createComputerWithDoom, createShell } from './helpers';
+
+const flush = () => new Promise((r) => setTimeout(r, 0));
 
 beforeEach(() => {
   vi.stubGlobal('requestAnimationFrame', () => 0);
   vi.stubGlobal('cancelAnimationFrame', () => {});
+  // `games install doom` fetches the real ~4.5 MB third-party doom.wasm engine over the network;
+  // stand in a fake successful response carrying the tiny placeholder bytes instead, so this test
+  // exercises the *command's* logic (install/list/run/stop/info/remove) without needing network
+  // access or the real engine file on disk.
+  const bytes = decodeStubDoomWasm();
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+    }),
+  );
 });
 
 describe('games terminal command', () => {
@@ -12,12 +28,14 @@ describe('games terminal command', () => {
     expect(shell.run('games list').stdout).toContain('No games installed');
   });
 
-  it('installs, lists, runs, stops, inspects and removes doom', () => {
+  it('installs, lists, runs, stops, inspects and removes doom', async () => {
     const { shell, computer } = createShell(createComputerWithDoom());
 
     const install = shell.run('games install doom');
     expect(install.exitCode).toBe(0);
-    expect(install.stdout).toContain('doom installed');
+    expect(install.stdout).toContain('Installing doom');
+    await flush();
+    expect(computer.runtime.registry.get('doom')).toBeDefined();
 
     const list = shell.run('games list');
     expect(list.stdout).toContain('doom');
@@ -41,6 +59,13 @@ describe('games terminal command', () => {
     expect(shell.run('games list').stdout).toContain('No games installed');
   });
 
+  it('posts a success notification once the background install completes', async () => {
+    const { shell, computer } = createShell(createComputerWithDoom());
+    shell.run('games install doom');
+    await flush();
+    expect(computer.notifications.getSnapshot().some((n) => n.type === 'success' && n.title === 'Installed')).toBe(true);
+  });
+
   it('rejects unknown installable ids', () => {
     const { shell } = createShell(createComputerWithDoom());
     const result = shell.run('games install not-a-real-game');
@@ -59,17 +84,19 @@ describe('games terminal command', () => {
     expect(() => computer.runtime.attach(pid, 'irrelevant', 'doom')).toThrowError('No runtime manifest installed');
   });
 
-  it('stopping a game that is not running fails cleanly', () => {
+  it('stopping a game that is not running fails cleanly', async () => {
     const { shell } = createShell(createComputerWithDoom());
     shell.run('games install doom');
+    await flush();
     const result = shell.run('games stop doom');
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain('is not running');
   });
 
-  it('with no arguments, games behaves like "games list"', () => {
+  it('with no arguments, games behaves like "games list"', async () => {
     const { shell } = createShell(createComputerWithDoom());
     shell.run('games install doom');
+    await flush();
     expect(shell.run('games').stdout).toContain('doom');
   });
 });

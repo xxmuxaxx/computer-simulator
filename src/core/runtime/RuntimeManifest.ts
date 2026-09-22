@@ -30,6 +30,7 @@ export function parseManifest(json: string): RuntimeManifest {
   if (typeof v.name !== 'string' || !v.name) throw runtimeError(id, 'Manifest is missing "name"');
   if (typeof v.version !== 'string' || !v.version) throw runtimeError(id, 'Manifest is missing "version"');
   if (typeof v.executable !== 'string' || !v.executable) throw runtimeError(id, 'Manifest is missing "executable"');
+  if (typeof v.engine !== 'string' || !v.engine) throw runtimeError(id, 'Manifest is missing "engine"');
   if (!VALID_TYPES.includes(v.type as RuntimeManifestType)) throw runtimeError(id, 'Manifest has an invalid "type"');
   if (typeof v.memoryUsage !== 'number' || v.memoryUsage <= 0) throw runtimeError(id, 'Manifest is missing "memoryUsage"');
 
@@ -45,6 +46,7 @@ export function parseManifest(json: string): RuntimeManifest {
     name: v.name as string,
     version: v.version as string,
     type: v.type as RuntimeManifestType,
+    engine: v.engine as string,
     executable: v.executable as string,
     icon: typeof v.icon === 'string' ? v.icon : undefined,
     description: typeof v.description === 'string' ? v.description : undefined,

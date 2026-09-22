@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { DOOM_APP_ID, DOOM_WAD_RELATIVE_PATH, hasWad, installDoom } from '../../core/runtime/doom/DoomRuntimeAdapter';
+import { DOOM_APP_ID, DOOM_WAD_RELATIVE_PATH, hasWad, installDoom, isValidWadHeader } from '../../core/runtime/doom/DoomRuntimeAdapter';
 import type { RuntimeInstance } from '../../core/runtime/RuntimeInstance';
 import { useComputer } from '../../hooks/useComputer';
 import { useWindow } from '../../hooks/useObservable';
@@ -19,8 +19,10 @@ export function RuntimeHostApp({ windowId, pid }: AppProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [instance, setInstance] = useState<RuntimeInstance | null>(null);
   const [notInstalled, setNotInstalled] = useState(false);
-  const [needsWad, setNeedsWad] = useState(false);
+  const [customWad, setCustomWad] = useState(false);
   const [crashed, setCrashed] = useState(false);
+  const [installing, setInstalling] = useState(false);
+  const [showWadPicker, setShowWadPicker] = useState(false);
 
   const attach = () => {
     if (!appId) return;
@@ -29,7 +31,10 @@ export function RuntimeHostApp({ windowId, pid }: AppProps) {
       setInstance(inst);
       setNotInstalled(false);
       setCrashed(inst.state === 'crashed');
-      setNeedsWad(appId === DOOM_APP_ID && !hasWad(inst.fileProvider));
+      // The engine embeds a legally freely-distributable Shareware WAD as its own fallback, so
+      // the game already plays with no WAD present - this only tracks whether the player has
+      // opted into their own legally obtained WAD, never a blocking gate.
+      setCustomWad(appId === DOOM_APP_ID && hasWad(inst.fileProvider));
     } catch {
       setNotInstalled(true);
     }
@@ -62,9 +67,16 @@ export function RuntimeHostApp({ windowId, pid }: AppProps) {
     return () => cancelAnimationFrame(handle);
   }, [instance]);
 
-  const install = () => {
-    computer.attempt(() => installDoom(computer.runtime));
-    attach();
+  const install = async () => {
+    setInstalling(true);
+    try {
+      await installDoom(computer.runtime);
+      attach();
+    } catch (e) {
+      computer.reportError(e);
+    } finally {
+      setInstalling(false);
+    }
   };
 
   const restart = () => {
@@ -78,8 +90,25 @@ export function RuntimeHostApp({ windowId, pid }: AppProps) {
   const pickWadFile = async (file: File) => {
     if (!instance) return;
     const bytes = new Uint8Array(await file.arrayBuffer());
-    computer.attempt(() => instance.fileProvider.writeFile(DOOM_WAD_RELATIVE_PATH, bytes));
-    setNeedsWad(!hasWad(instance.fileProvider));
+    if (appId === DOOM_APP_ID && !isValidWadHeader(bytes)) {
+      computer.notifications.error('Invalid WAD file', `"${file.name}" doesn't have a valid IWAD/PWAD header.`);
+      return;
+    }
+    try {
+      instance.fileProvider.writeFile(DOOM_WAD_RELATIVE_PATH, bytes);
+    } catch (e) {
+      computer.reportError(e);
+      return;
+    }
+    setShowWadPicker(false);
+    // doom.wasm only reads WAD data once, during its own startup - restart the instance so the
+    // engine picks up the newly supplied file on its next initGame().
+    const fresh = computer.attempt(() => computer.runtime.restart(pid));
+    if (fresh) {
+      setInstance(fresh);
+      setCrashed(false);
+      setCustomWad(true);
+    }
   };
 
   const buttonsBitmask = (e: { buttons: number }) => e.buttons;
@@ -90,8 +119,8 @@ export function RuntimeHostApp({ windowId, pid }: AppProps) {
         <p>Game data not found.</p>
         <p className="hint">This application hasn't been installed yet.</p>
         {appId === DOOM_APP_ID ? (
-          <button className="btn btn-primary" onClick={install}>
-            Install DOOM
+          <button className="btn btn-primary" disabled={installing} onClick={() => void install()}>
+            {installing ? 'Installing…' : 'Install DOOM'}
           </button>
         ) : (
           <p className="hint">Install it from Game Manager first.</p>
@@ -109,19 +138,19 @@ export function RuntimeHostApp({ windowId, pid }: AppProps) {
         tabIndex={0}
         onKeyDown={(e) => {
           e.preventDefault();
-          instance.input.pushKey(e.code, true);
+          instance.reportKeyDown(e.key);
         }}
         onKeyUp={(e) => {
           e.preventDefault();
-          instance.input.pushKey(e.code, false);
+          instance.reportKeyUp(e.key);
         }}
         onBlur={() => instance.input.blur()}
         onMouseMove={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();
-          instance.input.pushMouse(e.clientX - rect.left, e.clientY - rect.top, buttonsBitmask(e));
+          instance.reportMouseMove(e.clientX - rect.left, e.clientY - rect.top, buttonsBitmask(e));
         }}
-        onMouseDown={(e) => instance.input.pushMouse(instance.input.snapshot().mouseX, instance.input.snapshot().mouseY, buttonsBitmask(e))}
-        onMouseUp={(e) => instance.input.pushMouse(instance.input.snapshot().mouseX, instance.input.snapshot().mouseY, buttonsBitmask(e))}
+        onMouseDown={(e) => instance.reportMouseMove(instance.input.snapshot().mouseX, instance.input.snapshot().mouseY, buttonsBitmask(e))}
+        onMouseUp={(e) => instance.reportMouseMove(instance.input.snapshot().mouseX, instance.input.snapshot().mouseY, buttonsBitmask(e))}
       >
         <canvas ref={canvasRef} width={instance.display.width} height={instance.display.height} />
         {crashed && (
@@ -133,22 +162,34 @@ export function RuntimeHostApp({ windowId, pid }: AppProps) {
             </button>
           </div>
         )}
-        {!crashed && needsWad && (
-          <div className="runtime-overlay">
-            <p>Game data not found.</p>
-            <p className="hint">Please provide a legally obtained DOOM IWAD.</p>
-            <label className="btn btn-primary">
-              Select File
-              <input
-                type="file"
-                accept=".wad"
-                hidden
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) void pickWadFile(file);
-                }}
-              />
-            </label>
+        {!crashed && appId === DOOM_APP_ID && (
+          <div className="runtime-wad-control">
+            {showWadPicker ? (
+              <div className="runtime-wad-picker">
+                <p className="hint">Select a legally obtained DOOM IWAD - never a bundled/commercial one.</p>
+                <div className="runtime-wad-actions">
+                  <label className="btn btn-primary">
+                    Select File
+                    <input
+                      type="file"
+                      accept=".wad"
+                      hidden
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) void pickWadFile(file);
+                      }}
+                    />
+                  </label>
+                  <button className="btn" onClick={() => setShowWadPicker(false)}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button className="btn btn-ghost" onClick={() => setShowWadPicker(true)}>
+                {customWad ? 'Change WAD' : 'Use my own WAD…'}
+              </button>
+            )}
           </div>
         )}
       </div>

@@ -1,5 +1,8 @@
 import { ApplicationRegistry } from '../applications/ApplicationRegistry';
 import { VirtualComputer, type ComputerOptions } from '../computer/VirtualComputer';
+import type { RuntimeManager } from '../runtime/RuntimeManager';
+import { decodeStubDoomWasm } from '../runtime/stub/stub-doom-bytes';
+import type { RuntimeManifest } from '../runtime/types';
 import { Shell } from '../shell/Shell';
 
 export function createRegistry(): ApplicationRegistry {
@@ -38,4 +41,27 @@ export function createComputerWithDoom(overrides: Partial<ComputerOptions> = {})
 
 export function createShell(computer = createComputer()): { shell: Shell; computer: VirtualComputer } {
   return { shell: new Shell(computer), computer };
+}
+
+/**
+ * Installs a runtime package backed by the placeholder stub engine, under the given app id
+ * (default 'doom', matching `createRegistryWithDoom()`'s app registration). Used by tests that
+ * exercise the *generic* runtime pipeline (launch/window/pause-resume/persistence) - deliberately
+ * not `installDoom()`, which fetches the real ~4.5 MB third-party doom.wasm engine and would make
+ * these tests depend on network access or a locally-placed binary.
+ */
+export function installStubGame(runtime: RuntimeManager, id = 'doom'): void {
+  const manifest: RuntimeManifest = {
+    id,
+    name: 'Test Game',
+    version: '1.0.0',
+    type: 'game',
+    engine: 'stub',
+    executable: 'stub.wasm',
+    memoryUsage: 32,
+    cpuUsage: 8,
+    display: { width: 4, height: 4 },
+    permissions: ['fs:read', 'fs:write', 'input:keyboard', 'input:mouse', 'display:render'],
+  };
+  runtime.install(manifest, { 'stub.wasm': decodeStubDoomWasm() });
 }

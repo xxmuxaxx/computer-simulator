@@ -1,2 +1,6 @@
 node_modules
 dist
+
+# Third-party DOOM WASM engine binary - fetched from its own upstream release, not vendored.
+# See public/runtime/doom/README.md for where to get it.
+public/runtime/doom/*.wasm

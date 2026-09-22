@@ -4,8 +4,10 @@ import type { RuntimeManifest } from '../../runtime/types';
 import { fail, ok, type Command, type CommandContext } from '../types';
 import { lines, usage } from './helpers';
 
-/** Adapters installable via `games install <id>` - a small static map for v1 (just DOOM). */
-const INSTALLABLE: Record<string, (ctx: CommandContext) => void> = {
+/** Adapters installable via `games install <id>` - a small static map for v1 (just DOOM). Async
+ * because fetching a real engine binary takes a moment; the shell's Command interface is
+ * synchronous, so installation runs in the background and reports back via a notification. */
+const INSTALLABLE: Record<string, (ctx: CommandContext) => Promise<void>> = {
   [DOOM_APP_ID]: (ctx) => installDoom(ctx.computer.runtime),
 };
 
@@ -36,12 +38,10 @@ const games: Command = {
     if (action === 'install') {
       const installer = INSTALLABLE[id];
       if (!installer) return fail(`games: no installable game named "${id}"\n`, 1);
-      try {
-        installer(ctx);
-      } catch (e) {
-        return fail(`games: install: ${errorMessage(e)}\n`, 1);
-      }
-      return ok(`${id} installed.\n`);
+      void installer(ctx)
+        .then(() => ctx.computer.notifications.success('Installed', `${id} is ready to play.`))
+        .catch((e) => ctx.computer.reportError(e));
+      return ok(`Installing ${id}… a notification will confirm when it's ready.\n`);
     }
 
     if (action === 'run') {

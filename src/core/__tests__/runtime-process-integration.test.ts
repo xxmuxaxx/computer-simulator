@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { installDoom } from '../runtime/doom/DoomRuntimeAdapter';
-import { createComputerWithDoom } from './helpers';
+import { createComputerWithDoom, installStubGame } from './helpers';
 
 // The real runtime loop drives itself with requestAnimationFrame, which doesn't exist in the
 // Node test environment. Stub it to a no-op that never fires - tests drive frames deterministically
@@ -13,7 +12,7 @@ beforeEach(() => {
 describe('runtime-backed applications integrate with the ordinary process/window pipeline', () => {
   it('computer.launch("doom") produces a real process and window like any other app', async () => {
     const pc = createComputerWithDoom();
-    installDoom(pc.runtime);
+    installStubGame(pc.runtime);
 
     const { windowId, pid } = pc.launch('doom');
 
@@ -28,7 +27,7 @@ describe('runtime-backed applications integrate with the ordinary process/window
 
   it('minimizing the window pauses the instance via the existing tick-driven status sync', async () => {
     const pc = createComputerWithDoom();
-    installDoom(pc.runtime);
+    installStubGame(pc.runtime);
     const { windowId, pid } = pc.launch('doom');
     const instance = pc.runtime.attach(pid, windowId, 'doom');
     await instance.start();
@@ -49,7 +48,7 @@ describe('runtime-backed applications integrate with the ordinary process/window
 
   it('reportUsage is visible on the plain Process shape - no Task Manager changes needed', async () => {
     const pc = createComputerWithDoom();
-    installDoom(pc.runtime);
+    installStubGame(pc.runtime);
     const { windowId, pid } = pc.launch('doom');
     const instance = pc.runtime.attach(pid, windowId, 'doom');
     await instance.start();
@@ -63,7 +62,7 @@ describe('runtime-backed applications integrate with the ordinary process/window
 
   it('killing the process through the ordinary path disposes the runtime instance', async () => {
     const pc = createComputerWithDoom();
-    installDoom(pc.runtime);
+    installStubGame(pc.runtime);
     const { windowId, pid } = pc.launch('doom');
     const instance = pc.runtime.attach(pid, windowId, 'doom');
     await instance.start();

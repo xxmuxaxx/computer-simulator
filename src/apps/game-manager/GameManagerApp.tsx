@@ -8,7 +8,7 @@ import type { AppProps } from '../types';
 import './game-manager.css';
 
 /** Adapters that can be installed, whether or not they're installed yet - just DOOM for now. */
-const AVAILABLE: { manifest: () => RuntimeManifest; install: (runtime: ReturnType<typeof useComputer>['runtime']) => void }[] = [
+const AVAILABLE: { manifest: () => RuntimeManifest; install: (runtime: ReturnType<typeof useComputer>['runtime']) => Promise<void> }[] = [
   { manifest: createDoomManifest, install: installDoom },
 ];
 
@@ -16,15 +16,24 @@ export function GameManagerApp(_props: AppProps) {
   const computer = useComputer();
   useVersion(computer.runtime);
   const [selected, setSelected] = useState<string | null>(null);
+  const [installing, setInstalling] = useState<string | null>(null);
 
   const installed = computer.runtime.registry.list();
   const installedIds = new Set(installed.map((m) => m.id));
   const notInstalled = AVAILABLE.map((a) => a.manifest()).filter((m) => !installedIds.has(m.id));
 
   const play = (id: string) => computer.attempt(() => computer.launch(id));
-  const install = (id: string) => {
+  const install = async (id: string) => {
     const entry = AVAILABLE.find((a) => a.manifest().id === id);
-    if (entry) computer.attempt(() => entry.install(computer.runtime));
+    if (!entry) return;
+    setInstalling(id);
+    try {
+      await entry.install(computer.runtime);
+    } catch (e) {
+      computer.reportError(e);
+    } finally {
+      setInstalling(null);
+    }
   };
   const remove = (id: string) => {
     computer.attempt(() => computer.runtime.uninstall(id));
@@ -96,8 +105,8 @@ export function GameManagerApp(_props: AppProps) {
                   <span>{m.description}</span>
                 </div>
                 <div className="gm-row-actions">
-                  <button className="btn btn-primary" onClick={() => install(m.id)}>
-                    Install
+                  <button className="btn btn-primary" disabled={installing === m.id} onClick={() => void install(m.id)}>
+                    {installing === m.id ? 'Installing…' : 'Install'}
                   </button>
                 </div>
               </div>

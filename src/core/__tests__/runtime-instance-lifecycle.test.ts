@@ -13,6 +13,7 @@ function manifest(overrides: Partial<RuntimeManifest> = {}): RuntimeManifest {
     name: 'DOOM',
     version: '1.0.0',
     type: 'game',
+    engine: 'stub',
     executable: 'doom.wasm',
     memoryUsage: 32,
     cpuUsage: 8,

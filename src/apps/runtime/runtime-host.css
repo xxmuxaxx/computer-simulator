@@ -60,3 +60,39 @@
 .runtime-overlay input[type='file'] {
   display: none;
 }
+
+.runtime-wad-control {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+}
+
+.runtime-wad-control .btn-ghost {
+  background: rgba(10, 10, 14, 0.65);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.runtime-wad-picker {
+  background: rgba(10, 10, 14, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  width: 220px;
+  text-align: center;
+}
+
+.runtime-wad-picker .hint {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 12px;
+  margin: 0 0 8px;
+}
+
+.runtime-wad-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+
+.runtime-wad-picker input[type='file'] {
+  display: none;
+}

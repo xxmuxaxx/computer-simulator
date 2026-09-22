@@ -261,12 +261,17 @@ and Task Manager needed zero changes to support it.
   `RuntimeHostApp` (`src/apps/runtime/RuntimeHostApp.tsx`) calls
   `computer.runtime.attach(pid, windowId, appId)` on mount, which creates a sandboxed
   `RuntimeInstance` for that pid and starts it.
-- **Sandbox**: `ApplicationRuntime.instantiate()` builds an explicit, minimal
-  `WebAssembly.Imports` object — no `fetch`, no DOM, no globals. A module only ever gets a
-  `RuntimeFileProvider` (scoped to `/home/user/games/<id>/`, permission-gated, can't escape its
-  root), a `RuntimeInput` snapshot (buffered keyboard/mouse, never a real event listener) and a
-  `RuntimeDisplay` frame buffer (`Uint8ClampedArray`, painted onto a `<canvas>` by
-  `RuntimeHostApp` — `core/` itself never touches the DOM `ImageData` type).
+- **Sandbox**: `ApplicationRuntime.instantiate()` calls an `EngineAdapter` (resolved from
+  `RuntimeManifest.engine` via `core/runtime/engines/`'s small registry, the same
+  aggregating-file pattern as `commands/index.ts`) to build the explicit `WebAssembly.Imports`
+  object for that specific engine — no `fetch`, no DOM, no globals beyond what the adapter
+  implements. `ApplicationRuntime`/`RuntimeInstance` never hardcode any engine's import/export
+  shape themselves: a host-driven engine (the placeholder stub) and a module-driven one (real
+  DOOM, which calls back into an imported `ui.drawFrame`) both fit the same
+  `createImports/bind/init/tick` contract. A module only ever gets a `RuntimeFileProvider`
+  (scoped to `/home/user/games/<id>/`, permission-gated, can't escape its root), permission-gated
+  input state and a `RuntimeDisplay` frame buffer (`Uint8ClampedArray`, painted onto a `<canvas>`
+  by `RuntimeHostApp` — `core/` itself never touches the DOM `ImageData` type).
 - **Resource accounting** reuses the existing `Process` shape via a new, small
   `ProcessManager.reportUsage(pid, { cpuUsage?, memoryUsage? })` method (mirrors `boost()`'s
   spike but sets a sustained baseline) — Task Manager shows a runtime-hosted app like any other
@@ -276,10 +281,19 @@ and Task Manager needed zero changes to support it.
   automatically, riding the same minimized→sleeping process-status sync `VirtualComputer.tick()`
   already does. A crash posts a notification and stops the frame loop but **leaves the process
   alive** — Task Manager and Runtime Monitor still see it — rather than auto-killing it.
-- DOOM (`core/runtime/doom/`) is the first proof case: a hand-assembled 217-byte placeholder WASM
-  module (`core/runtime/stub/generate.mjs`), not real id Software code or WAD data. The runtime
-  API is shaped so a real engine drops in later as a manifest + `.wasm` swap, no `core/runtime/`
-  changes required.
+- DOOM (`core/runtime/doom/`) runs on a real third-party engine,
+  [jacobenget/doom.wasm](https://github.com/jacobenget/doom.wasm) (GPL-2.0) — chosen for its
+  deliberately minimal interface (10 imports, 4 exports). `DoomEngineAdapter.ts` implements that
+  interface as an `EngineAdapter` (BGRA→RGBA frame conversion, WAD loading, save games, a
+  `KeyboardEvent.key`→doomKey table); `DoomRuntimeAdapter.ts` fetches the ~4.5 MB engine binary
+  from `public/runtime/doom/doom.wasm` (gitignored — see its README for how to obtain it) at
+  install time. The engine embeds id Software's officially freely-distributable Shareware WAD as
+  its built-in fallback, so DOOM plays immediately with no bundled commercial IWAD; a player can
+  still supply their own legally obtained WAD through the in-app file picker. The placeholder
+  stub engine (`core/runtime/stub/generate.mjs`, a hand-assembled 217-byte WASM module) still
+  exists and is what the automated test suite exercises for the generic pipeline, since it needs
+  no network access or third-party binary — see docs/runtime.md for the full architecture,
+  attribution and why the runtime had to become engine-agnostic to support both.
 
 New games/runtime-app terminal commands live in `core/shell/commands/games.ts` (`games
 list|install|run|stop|info|remove`), following the same single-command-with-subcommands style as

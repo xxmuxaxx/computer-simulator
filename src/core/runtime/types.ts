@@ -12,6 +12,8 @@ export interface RuntimeManifest {
   name: string;
   version: string;
   type: RuntimeManifestType;
+  /** Which EngineAdapter (`core/runtime/engines/`) knows how to drive this WASM module. */
+  engine: string;
   /** Path to the WASM module, relative to `/apps/<id>/`. */
   executable: string;
   icon?: string;

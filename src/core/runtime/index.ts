@@ -15,3 +15,5 @@ export { RuntimeRegistry, APPS_ROOT } from './RuntimeRegistry';
 export { RuntimeInstance, type RuntimeInstanceOptions } from './RuntimeInstance';
 export { RuntimeManager, type RuntimeManagerOptions } from './RuntimeManager';
 export { RuntimeEventBus, type RuntimeEventMap, type RuntimeEventName } from './events';
+export type { EngineAdapter, EngineAdapterFactory, EngineHost } from './engines';
+export { resolveEngineAdapter } from './engines';
