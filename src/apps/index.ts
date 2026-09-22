@@ -10,6 +10,11 @@ import { NetworkManagerApp } from './network-manager/NetworkManagerApp';
 import { NetworkMonitorApp } from './network-monitor/NetworkMonitorApp';
 import { ServerManagerApp } from './server-manager/ServerManagerApp';
 import { BrowserApp } from './browser/BrowserApp';
+import { HostingManagerApp } from './hosting-manager/HostingManagerApp';
+import { WebsiteBuilderApp } from './website-builder/WebsiteBuilderApp';
+import { DomainManagerApp } from './domain-manager/DomainManagerApp';
+import { SearchApp } from './search/SearchApp';
+import { InternetControlPanelApp } from './internet-control-panel/InternetControlPanelApp';
 
 /**
  * Every application the desktop can launch, registered once at startup. Adding an
@@ -168,6 +173,91 @@ appRegistry.register({
   cpuUsage: 2,
   startupCpu: 8,
   component: BrowserApp,
+  system: true,
+  category: 'system',
+});
+
+appRegistry.register({
+  id: 'domain-manager',
+  name: 'Domain Manager',
+  icon: 'link',
+  description: 'Register, renew and release virtual domain names',
+  defaultWidth: 640,
+  defaultHeight: 560,
+  minWidth: 480,
+  minHeight: 400,
+  memoryUsage: 100,
+  cpuUsage: 1,
+  startupCpu: 4,
+  component: DomainManagerApp,
+  system: true,
+  category: 'system',
+});
+
+appRegistry.register({
+  id: 'hosting-manager',
+  name: 'Hosting Manager',
+  icon: 'grid',
+  description: 'Manage websites hosted on the virtual network: bind domains, view stats and logs',
+  defaultWidth: 820,
+  defaultHeight: 560,
+  minWidth: 560,
+  minHeight: 380,
+  memoryUsage: 130,
+  cpuUsage: 1,
+  startupCpu: 5,
+  component: HostingManagerApp,
+  system: true,
+  category: 'system',
+});
+
+appRegistry.register({
+  id: 'website-builder',
+  name: 'Website Builder',
+  icon: 'file-plus',
+  description: 'Create a new virtual website from a template',
+  defaultWidth: 620,
+  defaultHeight: 640,
+  minWidth: 460,
+  minHeight: 480,
+  memoryUsage: 110,
+  cpuUsage: 1,
+  startupCpu: 4,
+  component: WebsiteBuilderApp,
+  system: true,
+  category: 'system',
+});
+
+appRegistry.register({
+  id: 'search',
+  name: 'Virtual Search',
+  icon: 'search',
+  description: 'Search sites indexed from the virtual internet',
+  defaultWidth: 620,
+  defaultHeight: 640,
+  minWidth: 420,
+  minHeight: 420,
+  memoryUsage: 120,
+  cpuUsage: 1,
+  startupCpu: 4,
+  component: SearchApp,
+  system: true,
+  category: 'system',
+});
+
+appRegistry.register({
+  id: 'internet-control-panel',
+  name: 'Internet Control Panel',
+  icon: 'shield',
+  description: 'Dashboard for the Virtual Internet: domains, websites, servers and traffic',
+  defaultWidth: 700,
+  defaultHeight: 620,
+  minWidth: 480,
+  minHeight: 420,
+  memoryUsage: 100,
+  cpuUsage: 1,
+  startupCpu: 4,
+  component: InternetControlPanelApp,
   system: true,
   category: 'system',
 });

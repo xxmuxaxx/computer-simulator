@@ -5,12 +5,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 Computer Simulator is a browser-based simulation of a personal computer: its own desktop, window
-manager, virtual file system, process manager, terminal shell, a virtual network, and a handful of
-built-in applications (Files, Terminal, Text Editor, Task Manager, Settings, Network Manager,
-Network Monitor, Server Manager, Browser, a demo "System Benchmark" app). All state is persisted
-locally via IndexedDB — there is no backend. It is a simulation, not an emulator: no real machine
-code execution, no real file system access, and no real networking — every device, packet, DNS
-lookup and HTTP request lives entirely inside `core/network` (see "The virtual network" below).
+manager, virtual file system, process manager, terminal shell, a virtual network, a fully virtual
+Internet built on top of it, and a handful of built-in applications (Files, Terminal, Text Editor,
+Task Manager, Settings, Network Manager, Network Monitor, Server Manager, Browser, Domain Manager,
+Hosting Manager, Website Builder, Virtual Search, Internet Control Panel, a demo "System Benchmark"
+app). All state is persisted locally via IndexedDB — there is no backend. It is a simulation, not
+an emulator: no real machine code execution, no real file system access, and no real networking —
+every device, packet, DNS lookup and HTTP request lives entirely inside `core/network` and
+`core/internet` (see "The virtual network" and "The Virtual Internet" below).
 
 ## Commands
 
@@ -62,19 +64,24 @@ src/
 │   │                              DHCP, DNS, firewalls, services and HTTP (see "The virtual
 │   │                              network" below). Zero dependency on React, same Observable
 │   │                              pattern as everything else in core/.
+│   ├── internet/                   InternetManager — domains, DNS zones, website hosting/APIs,
+│   │                              HTTPS certificates, a search engine and the Browser's own
+│   │                              profile, all built on core/network's public API (see "The
+│   │                              Virtual Internet" below). Zero dependency on React.
 │   └── computer/                  VirtualComputer — the composition root. Owns one instance of
-│                                   every core manager including NetworkManager, wires
-│                                   process↔memory↔window lifecycles together (killing a process
-│                                   closes its windows, closing a window frees its memory and kills
-│                                   its process, etc.), and exposes snapshot()/restore for
-│                                   persistence.
+│                                   every core manager including NetworkManager and
+│                                   InternetManager, wires process↔memory↔window lifecycles
+│                                   together (killing a process closes its windows, closing a
+│                                   window frees its memory and kills its process, etc.), and
+│                                   exposes snapshot()/restore for persistence.
 │
 ├── apps/                    One folder per application (files/, terminal/, editor/,
 │                              task-manager/, settings/, stress/, network-manager/,
-│                              network-monitor/, server-manager/, browser/). Each app is a plain
-│                              React component receiving `{ windowId, pid, args }`
-│                              (src/apps/types.ts). `src/apps/index.ts` is the single registration
-│                              point.
+│                              network-monitor/, server-manager/, browser/, domain-manager/,
+│                              hosting-manager/, website-builder/, search/,
+│                              internet-control-panel/). Each app is a plain React component
+│                              receiving `{ windowId, pid, args }` (src/apps/types.ts).
+│                              `src/apps/index.ts` is the single registration point.
 ├── desktop/                 React chrome: Desktop, WindowManager/WindowFrame (drag/resize/
 │                              minimize/maximize), Taskbar, Launcher, keyboard shortcuts
 │                              (useShortcuts.ts), wallpapers.
@@ -114,8 +121,10 @@ minimized state (minimized windows' processes go to `sleeping`).
 ### Persistence
 
 `ComputerSnapshot` (`core/computer/snapshot.ts`, `SNAPSHOT_VERSION`) bundles the file system,
-settings, installed apps, window layout and the network snapshot. `AutoSaver` subscribes to the
-relevant observables (including `computer.network`) and debounce-saves via `ComputerStorage`,
+settings, installed apps, window layout, the network snapshot and the internet snapshot (domains,
+DNS records, websites/API endpoints, certificates, the search index, and the Browser's own
+history/bookmarks/cookies). `AutoSaver` subscribes to the relevant observables (including
+`computer.network` and `computer.internet`) and debounce-saves via `ComputerStorage`,
 which wraps a `StorageBackend` (IndexedDB in the browser, falling back to an in-memory backend —
 and marking the computer "volatile" with a notification — if IndexedDB is unavailable). On boot,
 `store/computerStore.ts` loads the last snapshot and restores windows by re-launching each app
@@ -165,6 +174,59 @@ New network-aware terminal commands live in `core/shell/commands/network.ts` (`i
 *local* device only — reaching another device's services (e.g. stopping HTTP on `server.local`) is
 done through the Network Manager or Server Manager apps instead, the same way a real shell can't
 administer a remote host without something like SSH.
+
+### The Virtual Internet
+
+`core/internet/InternetManager.ts` (`computer.internet`) is a third composition root, built
+entirely on `NetworkManager`'s public API — it never bypasses DNS resolution or packet routing,
+and `core/network` never imports from `core/internet` (the dependency only goes one way).
+
+- **Domains** (`domains/DomainRegistry.ts`): register/check/renew/release/whois, with a
+  `DomainStatus` of `active`/`expired`/`reserved` and default `ns1`/`ns2.virtual-dns` nameservers.
+- **DNS** (`dns/DnsZoneManager.ts`) stores per-domain A/AAAA/CNAME/MX/TXT/NS records, but only
+  A and CNAME chains actually resolve to anything (the rest are architectural, per spec) —
+  whenever a domain/record changes, `DnsZoneManager` recomputes the effective hostname→IP mapping
+  and pushes/removes it from the correct `Network`'s existing `DnsRegistry` via
+  `network.setDnsRecord`/`removeDnsRecord` (chosen by `network.findNetworkForIp`). The *only* thing
+  that ever resolves a hostname during a real request is still `network.resolveDns` — this class
+  just keeps it in sync.
+- **Hosting** (`hosting/HostingRegistry.ts`) is installed as `NetworkManager`'s HTTP content
+  resolver via `network.setHttpHandler` (see `NetworkManagerOptions`/`HttpHandler` in
+  `network/types.ts` — the transport layer stays generic; `core/internet` is what actually decides
+  what a listening HTTP service serves). It resolves a `Website` by `Host` header (several sites
+  can share one server), enforces enabled/visibility/`allowedNetworks`, matches registered
+  `ApiEndpoint`s before falling back to static files, issues a session cookie on first visit,
+  writes `/var/log/http/{access,error}.log` on the target device, and tracks per-site
+  `WebsiteStats`. A request for a host with no matching `Website` falls back to the device's flat
+  `/var/www` (this is what keeps the original seeded `server.local` site working unmodified).
+- **Certificates** (`certificates/CertificateAuthority.ts`) are an explicitly non-cryptographic
+  HTTPS simulation: one certificate per exact domain name, `valid`/`expired`/`invalid`. Creating or
+  updating a website with `https: true` both issues a certificate *and* starts the `https` service
+  on port 443 (via `network.startService`) — a cert alone doesn't make the port answer, the same
+  way a real server needs something bound to 443, not just a certificate on disk.
+- **Search** (`search/SearchEngine.ts`) crawls via `network.httpRequest` exactly like the Browser
+  does — no real `fetch`. It respects `/robots.txt`, follows `/sitemap.xml`, builds an inverted
+  index plus a link graph for ranking, and marks unreachable links as broken. `search.virtual` is a
+  `Website` with `kind: 'dynamic-search'`; `HostingRegistry` recognizes `/search?q=...` on that
+  kind and renders live results server-side via `SearchEngine.renderResultsPage`, which is what
+  makes `http://search.virtual` work from the real Browser, not just the dedicated Search app.
+- **Browser profile** (`web/BrowserProfile.ts`, `computer.internet.browser`) holds history,
+  bookmarks, and per-origin (`web/origin.ts`: scheme+host+port) cookies and local/session storage,
+  isolated exactly like a real browser's same-origin policy. `web/sandbox.ts` wraps every served
+  HTML page with a strict CSP and a `console.*` → `postMessage` bridge before the Browser app sets
+  it as an iframe's `srcDoc` (`sandbox="allow-scripts"`, no `allow-same-origin`): page JavaScript
+  can run and mutate its own DOM, but can't reach the real network, the real filesystem or the
+  parent window.
+- A default Internet (`internet/seed.ts`: `computer.local`, `news.local`, `docs.local`,
+  `shop.local`, plus `search.virtual`) is registered, hosted on the seeded `server.local`, and
+  crawled the first time a computer boots with no saved snapshot — the same pattern as
+  `network/seed.ts`'s default network.
+
+New internet-aware terminal commands live in `core/shell/commands/internet.ts` (`domain`, `dns`,
+`website`, `cert`, `curl`, `wget`, `whois`). Unlike the local-only network commands above, these
+operate on the Internet control plane (domains/DNS/websites/certificates are global resources, not
+a specific device to "log into") — the same distinction `NetworkManager`'s cross-device
+`configureInterface`/`startService` already draws for the GUI apps.
 
 ### Adding an application
 

@@ -1,5 +1,5 @@
 import { ApplicationRegistry } from '../applications/ApplicationRegistry';
-import { VirtualComputer } from '../computer/VirtualComputer';
+import { VirtualComputer, type ComputerOptions } from '../computer/VirtualComputer';
 import { Shell } from '../shell/Shell';
 
 export function createRegistry(): ApplicationRegistry {
@@ -12,8 +12,8 @@ export function createRegistry(): ApplicationRegistry {
   return registry;
 }
 
-export function createComputer(): VirtualComputer {
-  return new VirtualComputer({ applications: createRegistry(), random: () => 0.5 });
+export function createComputer(overrides: Partial<ComputerOptions> = {}): VirtualComputer {
+  return new VirtualComputer({ applications: createRegistry(), random: () => 0.5, ...overrides });
 }
 
 export function createShell(computer = createComputer()): { shell: Shell; computer: VirtualComputer } {

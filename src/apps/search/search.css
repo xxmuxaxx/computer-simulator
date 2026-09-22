@@ -1,0 +1,79 @@
+.searchapp {
+  height: 100%;
+  overflow-y: auto;
+  padding: var(--space-5) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 620px;
+  margin: 0 auto;
+}
+.searchapp-hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: center;
+  text-align: center;
+}
+.searchapp-hero h1 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 1.4rem;
+}
+.searchapp-form {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+.searchapp-form .input {
+  flex: 1;
+}
+.searchapp-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.78rem;
+}
+.searchapp-results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.searchapp-result {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.searchapp-result-link {
+  text-align: left;
+  color: var(--accent);
+  font-size: 1rem;
+  font-weight: 600;
+}
+.searchapp-result-link:hover {
+  text-decoration: underline;
+}
+.searchapp-result-url {
+  font-size: 0.78rem;
+}
+.searchapp-result-desc {
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+}
+.searchapp-broken {
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-2);
+  font-size: 0.78rem;
+}
+.searchapp-broken h3 {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin: 0 0 var(--space-2);
+}
+.searchapp-hint {
+  text-align: center;
+  font-size: 0.78rem;
+}

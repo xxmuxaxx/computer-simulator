@@ -7,6 +7,7 @@ import { parseShortcut, seedFileSystem, SHORTCUT_EXT } from '../filesystem/seed'
 import { VirtualCPU } from '../hardware/VirtualCPU';
 import { VirtualDisk } from '../hardware/VirtualDisk';
 import { VirtualMemory } from '../hardware/VirtualMemory';
+import { InternetManager } from '../internet/InternetManager';
 import { NetworkManager } from '../network/NetworkManager';
 import { NotificationCenter } from '../notifications/NotificationCenter';
 import { ProcessManager } from '../process/ProcessManager';
@@ -72,6 +73,7 @@ export class VirtualComputer extends Observable {
   readonly settings: SettingsManager;
   readonly notifications: NotificationCenter;
   readonly network: NetworkManager;
+  readonly internet: InternetManager;
   readonly startedAt: number;
 
   private random: () => number;
@@ -103,6 +105,12 @@ export class VirtualComputer extends Observable {
       localFileSystem: this.fileSystem,
       localProcessManager: this.processManager,
       snapshot: snapshot?.network,
+    });
+    this.internet = new InternetManager({
+      network: this.network,
+      now: this.now,
+      random: this.random,
+      snapshot: snapshot?.internet,
     });
 
     const allIds = this.applications.list().map((a) => a.id);
@@ -284,6 +292,7 @@ export class VirtualComputer extends Observable {
       installedApps: [...this.installedApps.getSnapshot()],
       windows: this.windowManager.serialize(),
       network: this.network.snapshot(),
+      internet: this.internet.snapshot(),
     };
   }
 

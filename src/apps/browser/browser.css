@@ -23,6 +23,9 @@
   border-radius: var(--radius-sm);
   padding: 0 8px;
 }
+.browser-secure {
+  color: var(--success);
+}
 .browser-address .input {
   border: none;
   background: transparent;
@@ -30,6 +33,124 @@
 }
 .browser-address .input:focus {
   box-shadow: none;
+}
+.browser-panel {
+  flex: none;
+  max-height: 260px;
+  overflow-y: auto;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-1);
+}
+.browser-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+.browser-panel-empty {
+  padding: var(--space-3);
+}
+.browser-panel-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  width: 100%;
+  padding: 6px var(--space-3);
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.browser-panel-row:hover {
+  background: var(--hover);
+}
+.browser-panel-row span {
+  font-size: 0.82rem;
+}
+.browser-panel-bookmark {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-2) 0 0;
+}
+.browser-panel-bookmark button:first-child {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 6px var(--space-3);
+  border: none;
+}
+.browser-console {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.78rem;
+}
+.browser-console-line {
+  padding: 4px var(--space-3);
+  border-bottom: 1px solid var(--border);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.browser-console-line.warn {
+  color: #f0b429;
+}
+.browser-console-line.error {
+  color: var(--danger);
+}
+.browser-devtools {
+  max-height: 320px;
+}
+.browser-devtools-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+.browser-devtools-tab {
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+.browser-devtools-tab:hover {
+  background: var(--hover);
+}
+.browser-devtools-tab.selected {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.browser-devtools-clear {
+  margin-left: auto;
+}
+.browser-devtools-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+.browser-devtools-table th {
+  text-align: left;
+  color: var(--text-tertiary);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.browser-devtools-table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--border);
+  word-break: break-all;
+}
+.browser-devtools-table td.error {
+  color: var(--danger);
+}
+.browser-devtools-source {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 .browser-content {
   flex: 1;

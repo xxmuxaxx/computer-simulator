@@ -5,11 +5,13 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUp,
+  Bookmark,
   Bug,
   Check,
   CheckCircle2,
   ChevronRight,
   ClipboardPaste,
+  Clock,
   Copy,
   Cpu,
   Download,
@@ -27,6 +29,7 @@ import {
   LayoutGrid,
   Link2,
   List,
+  Lock,
   MemoryStick,
   Minus,
   Monitor,
@@ -50,6 +53,7 @@ import {
   Shield,
   ShieldAlert,
   Square,
+  Star,
   Sun,
   Terminal,
   Trash2,
@@ -119,6 +123,10 @@ const ICONS: Record<string, LucideIcon> = {
   'shield-alert': ShieldAlert,
   unplug: Unplug,
   wifi: Wifi,
+  bookmark: Bookmark,
+  history: Clock,
+  star: Star,
+  lock: Lock,
 };
 
 export interface IconProps {
@@ -148,6 +156,10 @@ const APP_TINTS: Record<string, string> = {
   globe: 'linear-gradient(135deg,#60a5fa,#2563eb)',
   server: 'linear-gradient(135deg,#a78bfa,#7c3aed)',
   radio: 'linear-gradient(135deg,#fb923c,#ea580c)',
+  grid: 'linear-gradient(135deg,#34d399,#059669)',
+  'file-plus': 'linear-gradient(135deg,#f472b6,#db2777)',
+  search: 'linear-gradient(135deg,#fbbf24,#d97706)',
+  shield: 'linear-gradient(135deg,#818cf8,#4f46e5)',
 };
 
 export function AppIcon({ name, size = 40 }: { name: string; size?: number }) {

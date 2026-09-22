@@ -22,6 +22,7 @@ export class AutoSaver {
       computer.installedApps.subscribe(schedule),
       computer.windowManager.subscribe(schedule),
       computer.network.subscribe(schedule),
+      computer.internet.subscribe(schedule),
     ];
   }
 

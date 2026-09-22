@@ -1,0 +1,222 @@
+.hostmgr {
+  position: relative;
+  display: flex;
+  height: 100%;
+  min-height: 0;
+}
+.hostmgr-list {
+  width: 240px;
+  flex: none;
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.hostmgr-empty {
+  padding: var(--space-3);
+}
+.hostmgr-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  background: none;
+  border: 1px solid transparent;
+  text-align: left;
+  cursor: pointer;
+  color: var(--text-primary);
+}
+.hostmgr-item:hover {
+  background: var(--hover);
+}
+.hostmgr-item.selected {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.hostmgr-item div {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.hostmgr-item strong {
+  font-size: 0.82rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hostmgr-status {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  letter-spacing: 0.03em;
+}
+.hostmgr-status.online {
+  background: rgba(47, 181, 115, 0.15);
+  color: var(--success);
+}
+.hostmgr-status.offline {
+  background: var(--bg-3);
+  color: var(--text-tertiary);
+}
+.hostmgr-detail {
+  flex: 1;
+  padding: var(--space-4);
+  overflow-y: auto;
+}
+.hostmgr-detail header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: var(--space-4);
+}
+.hostmgr-detail h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+.hostmgr-detail h3 {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin: var(--space-4) 0 var(--space-2);
+}
+.hostmgr-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: var(--space-4);
+}
+.hostmgr-meta div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: 0.82rem;
+  border-bottom: 1px dashed var(--border);
+  padding-bottom: 4px;
+}
+.hostmgr-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.hostmgr-stats {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--space-2);
+}
+.hostmgr-stats > div {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.hostmgr-stats strong {
+  font-size: 1rem;
+}
+.hostmgr-stats span {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+}
+.hostmgr-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  margin-bottom: var(--space-2);
+}
+.hostmgr-table th {
+  text-align: left;
+  color: var(--text-tertiary);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.hostmgr-table td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.hostmgr-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+.hostmgr-editor {
+  width: 92%;
+  height: 82%;
+  background: var(--bg-1);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.hostmgr-editor > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+.hostmgr-editor-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.hostmgr-editor-body aside {
+  width: 180px;
+  flex: none;
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.hostmgr-editor-file {
+  text-align: left;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+}
+.hostmgr-editor-file:hover {
+  background: var(--hover);
+}
+.hostmgr-editor-file.selected {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.hostmgr-editor-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-3);
+  gap: var(--space-2);
+}
+.hostmgr-editor-textarea {
+  flex: 1;
+  resize: none;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.82rem;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2);
+  color: var(--text-primary);
+}
+.hostmgr-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+}

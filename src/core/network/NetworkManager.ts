@@ -23,6 +23,8 @@ import type {
   DhcpLease,
   DnsRecord,
   FirewallRule,
+  HttpHandler,
+  HttpMethod,
   HttpResponse,
   Network,
   NetworkDevice,
@@ -86,6 +88,7 @@ export class NetworkManager extends Observable {
   private connections = new Map<string, Connection>();
   private networks = new Map<string, Network>();
   private dnsRegistries = new Map<string, DnsRegistry>();
+  private httpHandler: HttpHandler = (device, request) => buildHttpResponse(device.fileSystem, request.path);
 
   private readonly now: () => number;
   private readonly random: () => number;
@@ -666,7 +669,18 @@ export class NetworkManager extends Observable {
 
   // ───────────────────────────── HTTP ─────────────────────────────
 
-  httpRequest(fromDeviceId: string, host: string, options: { port?: number; path?: string } = {}): HttpResponse {
+  /** Replaces how a listening HTTP service's response is generated (defaults to reading a single
+   * file off the device's own /var/www). core/internet's HostingRegistry installs the real,
+   * Host-header-aware multi-site resolver here once it exists. */
+  setHttpHandler(handler: HttpHandler): void {
+    this.httpHandler = handler;
+  }
+
+  httpRequest(
+    fromDeviceId: string,
+    host: string,
+    options: { port?: number; path?: string; method?: HttpMethod; headers?: Record<string, string>; body?: string } = {},
+  ): HttpResponse {
     const device = this.requireDevice(fromDeviceId);
     const sourceIface = device.interfaces.find((i) => i.ipAddress && i.status === 'up');
     if (!sourceIface?.ipAddress) throw new SystemError('ENETUNREACH', undefined, 'No active network interface');
@@ -697,7 +711,14 @@ export class NetworkManager extends Observable {
     }
 
     this.events.emit('http:request', { fromIp: sourceIface.ipAddress, toIp: targetIp, path });
-    const response = buildHttpResponse(targetDevice.fileSystem, path);
+    const response = this.httpHandler(targetDevice, {
+      method: options.method ?? 'GET',
+      path,
+      host,
+      headers: options.headers ?? {},
+      body: options.body,
+      sourceIp: sourceIface.ipAddress,
+    });
     this.events.emit('http:response', { fromIp: sourceIface.ipAddress, toIp: targetIp, status: response.status });
     return response;
   }

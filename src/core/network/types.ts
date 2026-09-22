@@ -154,12 +154,31 @@ export interface PacketResult {
   errorCode?: string;
 }
 
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
+
 export interface HttpResponse {
   status: number;
   statusText: string;
   body: string;
   contentType: string;
+  headers?: Record<string, string>;
 }
+
+/** What a Website content resolver (see core/internet/hosting) receives for each request. */
+export interface HttpRequestContext {
+  method: HttpMethod;
+  path: string;
+  /** The Host the client asked for - a hostname, not necessarily the device's own name. */
+  host: string;
+  headers: Record<string, string>;
+  body?: string;
+  sourceIp: string;
+}
+
+/** Pluggable content resolver: NetworkManager only handles transport, this decides what a
+ * listening HTTP service actually serves. Defaults to the single-file-per-device behavior;
+ * core/internet's HostingRegistry replaces it with real Host-header multi-site routing. */
+export type HttpHandler = (device: DeviceRecord, request: HttpRequestContext) => HttpResponse;
 
 export type NetworkEventMap = {
   'device:added': { device: NetworkDevice };

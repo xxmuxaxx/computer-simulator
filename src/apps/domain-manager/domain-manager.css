@@ -1,0 +1,91 @@
+.domainmgr {
+  height: 100%;
+  overflow-y: auto;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.domainmgr h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+.domainmgr h3 {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin: var(--space-4) 0 var(--space-2);
+}
+.domainmgr-search {
+  display: flex;
+  gap: 8px;
+  max-width: 480px;
+}
+.domainmgr-search .input {
+  flex: 1;
+}
+.domainmgr-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 480px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-2);
+}
+.domainmgr-result > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.domainmgr-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.03em;
+}
+.domainmgr-badge.available {
+  background: rgba(47, 181, 115, 0.15);
+  color: var(--success);
+}
+.domainmgr-badge.taken,
+.domainmgr-badge.expired {
+  background: rgba(229, 72, 77, 0.12);
+  color: var(--danger);
+}
+.domainmgr-badge.invalid {
+  background: var(--bg-3);
+  color: var(--text-tertiary);
+}
+.domainmgr-badge.active {
+  background: rgba(47, 181, 115, 0.15);
+  color: var(--success);
+}
+.domainmgr-badge.reserved {
+  background: var(--bg-3);
+  color: var(--text-tertiary);
+}
+.domainmgr-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+.domainmgr-table th {
+  text-align: left;
+  color: var(--text-tertiary);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.domainmgr-table td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.domainmgr-row-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}

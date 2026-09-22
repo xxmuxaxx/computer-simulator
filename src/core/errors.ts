@@ -25,7 +25,13 @@ export type ErrorCode =
   | 'ENODHCP'
   | 'EDHCPFULL'
   | 'ENODEV'
-  | 'ETTLEXPIRED';
+  | 'ETTLEXPIRED'
+  // Virtual Internet errors
+  | 'EDOMAININVALID'
+  | 'EDOMAINTAKEN'
+  | 'ENODOMAIN'
+  | 'ENOWEBSITE'
+  | 'ENOSERVICE';
 
 const DEFAULT_MESSAGES: Record<ErrorCode, string> = {
   ENOENT: 'File not found',
@@ -54,6 +60,11 @@ const DEFAULT_MESSAGES: Record<ErrorCode, string> = {
   EDHCPFULL: 'DHCP address pool exhausted',
   ENODEV: 'No such network device',
   ETTLEXPIRED: 'TTL expired in transit',
+  EDOMAININVALID: 'Invalid domain name',
+  EDOMAINTAKEN: 'Domain is already registered',
+  ENODOMAIN: 'No such domain',
+  ENOWEBSITE: 'No such website',
+  ENOSERVICE: 'No such service',
 };
 
 /** Every expected failure of the virtual computer is a SystemError. */
