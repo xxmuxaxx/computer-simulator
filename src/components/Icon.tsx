@@ -1,0 +1,140 @@
+import {
+  Activity,
+  AlertTriangle,
+  ArrowDownAZ,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
+  Bug,
+  Check,
+  CheckCircle2,
+  ChevronRight,
+  ClipboardPaste,
+  Copy,
+  Cpu,
+  Download,
+  File,
+  FileText,
+  FilePlus,
+  Flame,
+  Folder,
+  FolderOpen,
+  FolderPlus,
+  HardDrive,
+  Home,
+  Info,
+  LayoutGrid,
+  Link2,
+  List,
+  MemoryStick,
+  Minus,
+  Monitor,
+  Moon,
+  Palette,
+  Pause,
+  Pencil,
+  Play,
+  Plus,
+  Power,
+  RefreshCw,
+  RotateCcw,
+  Save,
+  Scissors,
+  Search,
+  Settings,
+  Square,
+  Sun,
+  Terminal,
+  Trash2,
+  X,
+  XCircle,
+  type LucideIcon,
+} from 'lucide-react';
+
+const ICONS: Record<string, LucideIcon> = {
+  activity: Activity,
+  warning: AlertTriangle,
+  sort: ArrowDownAZ,
+  back: ArrowLeft,
+  forward: ArrowRight,
+  up: ArrowUp,
+  bug: Bug,
+  check: Check,
+  success: CheckCircle2,
+  chevron: ChevronRight,
+  paste: ClipboardPaste,
+  copy: Copy,
+  cpu: Cpu,
+  download: Download,
+  file: File,
+  'file-text': FileText,
+  'file-plus': FilePlus,
+  flame: Flame,
+  folder: Folder,
+  'folder-open': FolderOpen,
+  'folder-plus': FolderPlus,
+  disk: HardDrive,
+  home: Home,
+  info: Info,
+  grid: LayoutGrid,
+  link: Link2,
+  list: List,
+  memory: MemoryStick,
+  minimize: Minus,
+  desktop: Monitor,
+  moon: Moon,
+  palette: Palette,
+  pause: Pause,
+  rename: Pencil,
+  play: Play,
+  plus: Plus,
+  power: Power,
+  refresh: RefreshCw,
+  restore: RotateCcw,
+  save: Save,
+  cut: Scissors,
+  search: Search,
+  settings: Settings,
+  maximize: Square,
+  sun: Sun,
+  terminal: Terminal,
+  trash: Trash2,
+  close: X,
+  error: XCircle,
+};
+
+export interface IconProps {
+  name: string;
+  size?: number;
+  className?: string;
+  strokeWidth?: number;
+}
+
+export function Icon({ name, size = 16, className, strokeWidth = 1.8 }: IconProps) {
+  const Component = ICONS[name] ?? File;
+  return <Component size={size} className={className} strokeWidth={strokeWidth} aria-hidden />;
+}
+
+/** Tile colours per application, shared by the desktop, launcher and taskbar. */
+const APP_TINTS: Record<string, string> = {
+  folder: 'linear-gradient(135deg,#f6b93b,#e58e26)',
+  terminal: 'linear-gradient(135deg,#3d4663,#1e2336)',
+  'file-text': 'linear-gradient(135deg,#4facfe,#3b6fe0)',
+  activity: 'linear-gradient(135deg,#43e97b,#1fa971)',
+  settings: 'linear-gradient(135deg,#8b93a7,#5a6178)',
+  flame: 'linear-gradient(135deg,#ff7a59,#e0364b)',
+  trash: 'linear-gradient(135deg,#94a3b8,#64748b)',
+  link: 'linear-gradient(135deg,#8b5cf6,#6d3fd6)',
+  file: 'linear-gradient(135deg,#94a3b8,#64748b)',
+};
+
+export function AppIcon({ name, size = 40 }: { name: string; size?: number }) {
+  return (
+    <span
+      className="app-icon"
+      style={{ width: size, height: size, borderRadius: size * 0.26, background: APP_TINTS[name] ?? APP_TINTS.file }}
+    >
+      <Icon name={name} size={Math.round(size * 0.52)} strokeWidth={1.7} />
+    </span>
+  );
+}

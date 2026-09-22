@@ -1,0 +1,229 @@
+.settings {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+}
+.settings-nav {
+  width: 176px;
+  flex: none;
+  background: var(--bg-2);
+  border-right: 1px solid var(--border);
+  padding: var(--space-3) var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.settings-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-5);
+}
+.settings-content h2 {
+  margin: 0 0 var(--space-4);
+  font-size: 1.1rem;
+}
+.settings-content h3 {
+  margin: var(--space-5) 0 var(--space-2);
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+}
+
+.srow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border);
+}
+.srow-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.srow-label small {
+  color: var(--text-tertiary);
+  font-size: 0.76rem;
+}
+.srow-block {
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.srow-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.name-field {
+  display: flex;
+  gap: 6px;
+}
+.name-field .input {
+  width: 200px;
+}
+
+.wallpapers {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+}
+.wallpaper {
+  position: relative;
+  height: 64px;
+  border-radius: var(--radius-md);
+  border: 2px solid transparent;
+  display: flex;
+  align-items: flex-end;
+  padding: 6px;
+  color: #fff;
+  font-size: 0.7rem;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+.wallpaper.selected {
+  border-color: var(--accent);
+}
+.wallpaper svg {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+}
+
+.spec {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 8px 12px;
+  font-size: 0.82rem;
+}
+.spec dt {
+  color: var(--text-tertiary);
+}
+.spec dd {
+  margin: 0;
+}
+
+.storage-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.86rem;
+}
+.stack-bar {
+  display: flex;
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--bg-3);
+}
+.seg-system {
+  background: #8b93a7;
+}
+.seg-home {
+  background: var(--accent);
+}
+.seg-trash {
+  background: var(--danger);
+}
+.seg-other {
+  background: var(--warning);
+}
+.seg-free {
+  background: var(--bg-3);
+}
+.legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.legend em {
+  font-style: normal;
+  color: var(--text-tertiary);
+}
+.swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.danger-zone {
+  margin-top: var(--space-5);
+  padding: var(--space-3);
+  border: 1px solid rgba(229, 72, 77, 0.35);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.danger-zone strong {
+  display: block;
+}
+.danger-zone small {
+  color: var(--text-tertiary);
+}
+
+.app-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.app-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.app-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.app-info small {
+  color: var(--text-tertiary);
+}
+
+.about {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 4px;
+  max-width: 440px;
+  margin: 0 auto;
+}
+.about-logo {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, var(--accent), #7c5cff);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--space-2);
+}
+.about p {
+  color: var(--text-secondary);
+  font-size: 0.86rem;
+  line-height: 1.6;
+}
+.about .spec {
+  text-align: left;
+  margin-top: var(--space-3);
+}
