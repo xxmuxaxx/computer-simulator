@@ -1,0 +1,77 @@
+.netmon {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  font-family: var(--font-mono);
+}
+.netmon-filters {
+  flex: none;
+  display: flex;
+  gap: 6px;
+  padding: 6px var(--space-3);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-1);
+  font-family: var(--font-ui);
+}
+.netmon-log {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+.netmon-empty {
+  padding: var(--space-4);
+  font-family: var(--font-ui);
+}
+.netmon-row {
+  display: grid;
+  grid-template-columns: 70px 60px 1fr;
+  gap: 8px;
+  padding: 3px var(--space-3);
+  font-size: 0.76rem;
+  cursor: pointer;
+}
+.netmon-row:hover {
+  background: var(--hover);
+}
+.netmon-row.selected {
+  background: var(--accent-soft);
+}
+.netmon-time {
+  color: var(--text-tertiary);
+}
+.netmon-tag {
+  font-weight: 600;
+}
+.cat-ICMP .netmon-tag {
+  color: var(--accent);
+}
+.cat-TCP .netmon-tag {
+  color: #38bdf8;
+}
+.cat-UDP .netmon-tag {
+  color: #a78bfa;
+}
+.cat-DNS .netmon-tag {
+  color: var(--warning);
+}
+.cat-HTTP .netmon-tag {
+  color: var(--success);
+}
+.cat-ERROR .netmon-tag,
+.cat-ERROR .netmon-text {
+  color: var(--danger);
+}
+.netmon-inspector {
+  flex: none;
+  border-top: 1px solid var(--border);
+  padding: var(--space-3);
+  font-family: var(--font-ui);
+  max-height: 180px;
+  overflow-y: auto;
+}
+.netmon-inspector-head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}

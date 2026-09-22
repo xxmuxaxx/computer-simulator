@@ -1,7 +1,7 @@
 import { SNAPSHOT_VERSION, type ComputerSnapshot } from '../computer/snapshot';
 import type { StorageBackend } from './backends';
 
-const KEYS = ['meta', 'filesystem', 'settings', 'installedApps', 'windows'] as const;
+const KEYS = ['meta', 'filesystem', 'settings', 'installedApps', 'windows', 'network'] as const;
 
 interface Meta {
   version: number;
@@ -20,6 +20,7 @@ export class ComputerStorage {
       settings: snapshot.settings,
       installedApps: snapshot.installedApps,
       windows: snapshot.windows,
+      network: snapshot.network,
     });
   }
 
@@ -37,6 +38,7 @@ export class ComputerStorage {
       settings: (data.settings ?? {}) as ComputerSnapshot['settings'],
       installedApps: Array.isArray(data.installedApps) ? (data.installedApps as string[]) : [],
       windows: Array.isArray(data.windows) ? (data.windows as ComputerSnapshot['windows']) : [],
+      network: (data.network ?? undefined) as ComputerSnapshot['network'],
     };
   }
 

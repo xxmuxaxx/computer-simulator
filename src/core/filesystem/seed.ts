@@ -67,6 +67,8 @@ export function seedFileSystem(fs: VirtualFileSystem, apps: readonly AppManifest
     '/apps',
     '/tmp',
     '/etc',
+    '/var',
+    '/var/www',
   ]) {
     fs.createDirectory(dir, { recursive: true });
   }
@@ -83,16 +85,22 @@ export function seedFileSystem(fs: VirtualFileSystem, apps: readonly AppManifest
   fs.writeFile('/system/kernel.log', '[    0.000] kernel: virtual machine started\n[    0.120] kernel: filesystem mounted\n[    0.310] kernel: window manager ready\n');
   fs.writeFile('/etc/os-release', 'NAME="Computer Simulator OS"\nVERSION="1.0.0"\nID=compsim\n');
   fs.writeFile('/etc/motd', MOTD);
+  fs.writeFile('/etc/hosts', '127.0.0.1 localhost\n');
   for (const app of apps) {
     fs.writeFile(`/apps/${app.id}.app`, JSON.stringify({ id: app.id, name: app.name, description: app.description }, null, 2) + '\n');
   }
 
   // Lock down system locations; user folders can't be removed or renamed.
   for (const p of ['/system', '/apps', '/etc']) fs.setAttributes(p, { readonly: true });
-  for (const p of ['/system', '/apps', '/etc', '/tmp', '/home', HOME, DESKTOP, `${HOME}/Documents`, `${HOME}/Downloads`, `${HOME}/Projects`, fs.trashPath]) {
+  for (const p of [
+    '/system', '/apps', '/etc', '/tmp', '/var', '/var/www', '/home', HOME, DESKTOP,
+    `${HOME}/Documents`, `${HOME}/Downloads`, `${HOME}/Projects`, fs.trashPath,
+  ]) {
     fs.setAttributes(p, { protected: true });
   }
+  // /etc/hosts and the website under /var/www stay editable - everything else under /etc is read-only.
   for (const file of [...fs.walk('/system'), ...fs.walk('/apps'), ...fs.walk('/etc')]) {
+    if (file.path === '/etc/hosts') continue;
     fs.setAttributes(file.path, { readonly: true });
   }
 }

@@ -7,6 +7,7 @@ import { parseShortcut, seedFileSystem, SHORTCUT_EXT } from '../filesystem/seed'
 import { VirtualCPU } from '../hardware/VirtualCPU';
 import { VirtualDisk } from '../hardware/VirtualDisk';
 import { VirtualMemory } from '../hardware/VirtualMemory';
+import { NetworkManager } from '../network/NetworkManager';
 import { NotificationCenter } from '../notifications/NotificationCenter';
 import { ProcessManager } from '../process/ProcessManager';
 import { SettingsManager } from '../settings/SettingsManager';
@@ -70,6 +71,7 @@ export class VirtualComputer extends Observable {
   readonly windowManager: WindowManager;
   readonly settings: SettingsManager;
   readonly notifications: NotificationCenter;
+  readonly network: NetworkManager;
   readonly startedAt: number;
 
   private random: () => number;
@@ -95,6 +97,13 @@ export class VirtualComputer extends Observable {
     this.windowManager = new WindowManager();
     this.settings = new SettingsManager(snapshot?.settings);
     this.notifications = new NotificationCenter(this.now);
+    this.network = new NetworkManager({
+      now: this.now,
+      random: this.random,
+      localFileSystem: this.fileSystem,
+      localProcessManager: this.processManager,
+      snapshot: snapshot?.network,
+    });
 
     const allIds = this.applications.list().map((a) => a.id);
     const systemIds = this.applications.list().filter((a) => a.system).map((a) => a.id);
@@ -103,6 +112,7 @@ export class VirtualComputer extends Observable {
     this.processManager.onExit((p) => {
       this.memory.free(p.pid);
       for (const w of this.windowManager.findByPid(p.pid)) this.windowManager.close(w.id);
+      this.network.handleProcessExit(p.pid);
     });
 
     for (const spec of BOOT_PROCESSES) {
@@ -273,6 +283,7 @@ export class VirtualComputer extends Observable {
       settings: this.settings.getSnapshot(),
       installedApps: [...this.installedApps.getSnapshot()],
       windows: this.windowManager.serialize(),
+      network: this.network.snapshot(),
     };
   }
 

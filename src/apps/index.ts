@@ -6,6 +6,10 @@ import { EditorApp } from './editor/EditorApp';
 import { TaskManagerApp } from './task-manager/TaskManagerApp';
 import { SettingsApp } from './settings/SettingsApp';
 import { StressApp } from './stress/StressApp';
+import { NetworkManagerApp } from './network-manager/NetworkManagerApp';
+import { NetworkMonitorApp } from './network-monitor/NetworkMonitorApp';
+import { ServerManagerApp } from './server-manager/ServerManagerApp';
+import { BrowserApp } from './browser/BrowserApp';
 
 /**
  * Every application the desktop can launch, registered once at startup. Adding an
@@ -96,6 +100,74 @@ appRegistry.register({
   cpuUsage: 1,
   startupCpu: 5,
   component: SettingsApp,
+  system: true,
+  category: 'system',
+});
+
+appRegistry.register({
+  id: 'network-manager',
+  name: 'Network Manager',
+  icon: 'network',
+  description: 'View and configure the virtual network: devices, addresses, routing and firewalls',
+  defaultWidth: 900,
+  defaultHeight: 620,
+  minWidth: 640,
+  minHeight: 440,
+  memoryUsage: 150,
+  cpuUsage: 1.5,
+  startupCpu: 6,
+  component: NetworkManagerApp,
+  system: true,
+  category: 'system',
+});
+
+appRegistry.register({
+  id: 'network-monitor',
+  name: 'Network Monitor',
+  icon: 'radio',
+  description: 'Watch live network traffic: ICMP, TCP, UDP, DNS and HTTP events',
+  defaultWidth: 640,
+  defaultHeight: 480,
+  minWidth: 420,
+  minHeight: 320,
+  memoryUsage: 110,
+  cpuUsage: 1,
+  startupCpu: 4,
+  component: NetworkMonitorApp,
+  system: true,
+  category: 'system',
+});
+
+appRegistry.register({
+  id: 'server-manager',
+  name: 'Server Manager',
+  icon: 'server',
+  description: 'Start, stop and inspect network services on any device',
+  defaultWidth: 680,
+  defaultHeight: 480,
+  minWidth: 460,
+  minHeight: 340,
+  memoryUsage: 100,
+  cpuUsage: 1,
+  startupCpu: 4,
+  component: ServerManagerApp,
+  system: true,
+  category: 'system',
+});
+
+appRegistry.register({
+  id: 'browser',
+  name: 'Browser',
+  icon: 'globe',
+  description: 'Browse virtual web sites hosted on the network',
+  defaultWidth: 800,
+  defaultHeight: 560,
+  minWidth: 420,
+  minHeight: 320,
+  memoryUsage: 220,
+  cpuUsage: 2,
+  startupCpu: 8,
+  component: BrowserApp,
   system: true,
   category: 'system',
 });

@@ -11,7 +11,21 @@ export type ErrorCode =
   | 'ENOMEM'
   | 'ENOAPP'
   | 'ESYNTAX'
-  | 'ECMD';
+  | 'ECMD'
+  // Network errors
+  | 'EHOSTUNREACH'
+  | 'ENETUNREACH'
+  | 'ECONNREFUSED'
+  | 'ETIMEDOUT'
+  | 'EDNSFAIL'
+  | 'EFWDENY'
+  | 'EPORTINUSE'
+  | 'EDUPIP'
+  | 'EDUPHOST'
+  | 'ENODHCP'
+  | 'EDHCPFULL'
+  | 'ENODEV'
+  | 'ETTLEXPIRED';
 
 const DEFAULT_MESSAGES: Record<ErrorCode, string> = {
   ENOENT: 'File not found',
@@ -27,6 +41,19 @@ const DEFAULT_MESSAGES: Record<ErrorCode, string> = {
   ENOAPP: 'Application not found',
   ESYNTAX: 'Syntax error',
   ECMD: 'Invalid command',
+  EHOSTUNREACH: 'Host unreachable',
+  ENETUNREACH: 'Network unreachable',
+  ECONNREFUSED: 'Connection refused',
+  ETIMEDOUT: 'Connection timed out',
+  EDNSFAIL: 'DNS lookup failed',
+  EFWDENY: 'Blocked by firewall',
+  EPORTINUSE: 'Port already in use',
+  EDUPIP: 'Duplicate IP address',
+  EDUPHOST: 'Duplicate hostname',
+  ENODHCP: 'No DHCP server found',
+  EDHCPFULL: 'DHCP address pool exhausted',
+  ENODEV: 'No such network device',
+  ETTLEXPIRED: 'TTL expired in transit',
 };
 
 /** Every expected failure of the virtual computer is a SystemError. */

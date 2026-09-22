@@ -50,7 +50,8 @@ export function DebugPanel() {
   const computer = useComputer();
   useSimulation();
   useVersion(computer.fileSystem);
-  const { cpu, memory, disk, processManager, windowManager, fileSystem } = computer;
+  useVersion(computer.network);
+  const { cpu, memory, disk, processManager, windowManager, fileSystem, network } = computer;
   const gb = (n: number) => (n / 1024 ** 3).toFixed(1);
   const rows: [string, string][] = [
     ['CPU', `${Math.round(cpu.load)}%  (${cpu.frequencyMHz} MHz)`],
@@ -62,6 +63,25 @@ export function DebugPanel() {
     ['Nodes', String(fileSystem.countNodes())],
     ['Uptime', `${Math.floor(computer.uptimeMs() / 1000)} s`],
   ];
+  const devices = network.listDevices();
+  const netStats = devices.reduce(
+    (acc, d) => {
+      acc.sent += d.stats.packetsSent;
+      acc.received += d.stats.packetsReceived;
+      acc.dropped += d.stats.packetsDropped;
+      acc.blocked += d.stats.packetsBlocked;
+      return acc;
+    },
+    { sent: 0, received: 0, dropped: 0, blocked: 0 },
+  );
+  const netRows: [string, string][] = [
+    ['Devices', String(devices.length)],
+    ['Networks', String(network.listNetworks().length)],
+    ['Connections', String(network.listConnections().length)],
+    ['Packets sent/recv', `${netStats.sent} / ${netStats.received}`],
+    ['Dropped', String(netStats.dropped)],
+    ['Firewall blocked', String(netStats.blocked)],
+  ];
   return (
     <aside className="debug-panel" aria-label="Developer panel">
       <div className="debug-head">
@@ -72,6 +92,17 @@ export function DebugPanel() {
       </div>
       <dl>
         {rows.map(([k, v]) => (
+          <div key={k}>
+            <dt>{k}</dt>
+            <dd>{v}</dd>
+          </div>
+        ))}
+      </dl>
+      <div className="debug-head">
+        <strong>Network</strong>
+      </div>
+      <dl>
+        {netRows.map(([k, v]) => (
           <div key={k}>
             <dt>{k}</dt>
             <dd>{v}</dd>
