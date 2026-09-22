@@ -5,10 +5,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 Computer Simulator is a browser-based simulation of a personal computer: its own desktop, window
-manager, virtual file system, process manager, terminal shell, and a handful of built-in
-applications (Files, Terminal, Text Editor, Task Manager, Settings, a demo "System Benchmark"
-app). All state is persisted locally via IndexedDB — there is no backend. It is a simulation, not
-an emulator: no real machine code execution, no real file system access, no networking.
+manager, virtual file system, process manager, terminal shell, a virtual network, and a handful of
+built-in applications (Files, Terminal, Text Editor, Task Manager, Settings, Network Manager,
+Network Monitor, Server Manager, Browser, a demo "System Benchmark" app). All state is persisted
+locally via IndexedDB — there is no backend. It is a simulation, not an emulator: no real machine
+code execution, no real file system access, and no real networking — every device, packet, DNS
+lookup and HTTP request lives entirely inside `core/network` (see "The virtual network" below).
 
 ## Commands
 
@@ -52,20 +54,27 @@ src/
 │   ├── settings/, notifications/  SettingsManager, NotificationCenter
 │   ├── shell/                    Command-line parser (tokenize/parse/expandWord) + Shell session
 │   │                              + a CommandRegistry of pluggable Command objects
-│   │                              (src/core/shell/commands/*)
+│   │                              (src/core/shell/commands/*, including commands/network.ts)
 │   ├── storage/                   StorageBackend abstraction (IndexedDBBackend / MemoryBackend),
 │   │                              ComputerStorage (load/save/reset), AutoSaver (debounced,
-│   │                              subscribes to the observables above)
+│   │                              subscribes to the observables above, including network)
+│   ├── network/                   NetworkManager — devices, interfaces, connections, routing,
+│   │                              DHCP, DNS, firewalls, services and HTTP (see "The virtual
+│   │                              network" below). Zero dependency on React, same Observable
+│   │                              pattern as everything else in core/.
 │   └── computer/                  VirtualComputer — the composition root. Owns one instance of
-│                                   every core manager, wires process↔memory↔window lifecycles
-│                                   together (killing a process closes its windows, closing a
-│                                   window frees its memory and kills its process, etc.), and
-│                                   exposes snapshot()/restore for persistence.
+│                                   every core manager including NetworkManager, wires
+│                                   process↔memory↔window lifecycles together (killing a process
+│                                   closes its windows, closing a window frees its memory and kills
+│                                   its process, etc.), and exposes snapshot()/restore for
+│                                   persistence.
 │
 ├── apps/                    One folder per application (files/, terminal/, editor/,
-│                              task-manager/, settings/, stress/). Each app is a plain React
-│                              component receiving `{ windowId, pid, args }` (src/apps/types.ts).
-│                              `src/apps/index.ts` is the single registration point.
+│                              task-manager/, settings/, stress/, network-manager/,
+│                              network-monitor/, server-manager/, browser/). Each app is a plain
+│                              React component receiving `{ windowId, pid, args }`
+│                              (src/apps/types.ts). `src/apps/index.ts` is the single registration
+│                              point.
 ├── desktop/                 React chrome: Desktop, WindowManager/WindowFrame (drag/resize/
 │                              minimize/maximize), Taskbar, Launcher, keyboard shortcuts
 │                              (useShortcuts.ts), wallpapers.
@@ -104,12 +113,58 @@ minimized state (minimized windows' processes go to `sleeping`).
 
 ### Persistence
 
-`ComputerSnapshot` (`core/computer/snapshot.ts`) bundles the file system, settings, installed
-apps and window layout. `AutoSaver` subscribes to the relevant observables and debounce-saves via
-`ComputerStorage`, which wraps a `StorageBackend` (IndexedDB in the browser, falling back to an
-in-memory backend — and marking the computer "volatile" with a notification — if IndexedDB is
-unavailable). On boot, `store/computerStore.ts` loads the last snapshot and restores windows by
-re-launching each app with its saved args/bounds.
+`ComputerSnapshot` (`core/computer/snapshot.ts`, `SNAPSHOT_VERSION`) bundles the file system,
+settings, installed apps, window layout and the network snapshot. `AutoSaver` subscribes to the
+relevant observables (including `computer.network`) and debounce-saves via `ComputerStorage`,
+which wraps a `StorageBackend` (IndexedDB in the browser, falling back to an in-memory backend —
+and marking the computer "volatile" with a notification — if IndexedDB is unavailable). On boot,
+`store/computerStore.ts` loads the last snapshot and restores windows by re-launching each app
+with its saved args/bounds. Bumping `SNAPSHOT_VERSION` invalidates every existing saved snapshot
+(the loader refuses anything with a mismatched version) — there is no migration path, only a
+clean reset to defaults, which is intentional for a project still under active development.
+
+### The virtual network
+
+`core/network/NetworkManager.ts` is a second composition root living alongside `VirtualComputer`'s
+other managers (`computer.network`), not a separate app: it models more than one machine even
+though only one of them (`network.localDeviceId`) is the computer the user is actually sitting at.
+
+- **Devices** (`computer`/`server`/`router`/`switch`) each have one or more `NetworkInterface`s
+  (MAC via `network/mac.ts`, optional IP/mask/gateway/DNS, up/down status). The local device's
+  interface is backed by the real `VirtualComputer.fileSystem` (so `/etc/hosts` and `/var/www` are
+  editable from Files/Terminal); every other device gets its own private `VirtualFileSystem`
+  instance held only inside its `DeviceRecord` (see `types.ts`), used for its `/var/www` site and
+  `/etc/hosts`.
+- **Topology** is a graph of `Connection`s between interfaces. `routing.ts` resolves delivery in
+  two steps: `resolveInSegment`/`discoverSegment` do a same-broadcast-domain BFS that treats
+  switches as transparent (their ports get mutual adjacency) and routers as boundaries; then
+  `resolvePath` walks a packet across that graph, and every time it reaches a router (on any
+  interface) that router makes an independent routing-table decision (`bestRoute`, longest-prefix
+  match, `0.0.0.0/0` as the default route), so chains of routers work correctly. TTL is decremented
+  once per hop.
+- **`network.sendPacket()`** is the single real send path: it looks up the source device, checks
+  its outbound firewall, resolves the path, checks the destination's inbound firewall, and returns
+  a `PacketResult` (hops, latency, delivered/error). `ping()`/`traceroute()`/`httpRequest()` are all
+  built on top of it — nothing fakes a result without actually routing a packet through the graph.
+- **DHCP** (`dhcp.ts`) allocates/renews leases from a router's configured pool (`requestDhcp`).
+  **DNS** (`dns.ts`) is one `DnsRegistry` per `Network` (a CIDR block, `network.createNetwork()`);
+  `resolveDns()` checks the device's own `/etc/hosts` first, then every registry. **Firewalls**
+  (`firewall.ts`) evaluate a device's ordered rule list, first match wins, default allow.
+  **Services** (`services.ts`) are per-device listening ports; starting one on the local device
+  also spawns a real `ProcessManager` process, so Task Manager and `ps` see it too.
+- **Events**: `network.on('packet:sent' | 'packet:delivered' | 'packet:dropped' | 'dns:query' |
+  'firewall:blocked' | 'service:started' | ... , handler)` is a plain typed pub/sub
+  (`network/events.ts`), independent of the `Observable` version counter used for React re-renders
+  — Network Monitor subscribes to these directly instead of polling.
+- A default "Home Network" (router + switch + server, all seeded from `network/seed.ts`) is
+  created the first time a computer boots with no saved snapshot; the server runs an HTTP service
+  with a demo site under `/var/www`.
+
+New network-aware terminal commands live in `core/shell/commands/network.ts` (`ip`, `ifconfig`,
+`ping`, `traceroute`, `arp`, `route`, `nslookup`, `netstat`, `server`) and all operate on the
+*local* device only — reaching another device's services (e.g. stopping HTTP on `server.local`) is
+done through the Network Manager or Server Manager apps instead, the same way a real shell can't
+administer a remote host without something like SSH.
 
 ### Adding an application
 
@@ -132,8 +187,10 @@ to which commands exist — it only depends on the `CommandRegistry`.
 
 ### Errors
 
-Every expected failure (missing file, disk full, permission denied, unknown pid, ...) is a
-`SystemError` with a `code` (`core/errors.ts`) and a human-readable message. Shell commands catch
-these per-target (see `commands/helpers.ts`'s `forEachTarget`) so e.g. `rm a.txt b.txt` reports a
-partial failure instead of aborting; UI code funnels them through `computer.attempt()` /
-`computer.reportError()` into the notification center.
+Every expected failure (missing file, disk full, permission denied, unknown pid, host unreachable,
+connection refused, DNS lookup failed, blocked by firewall, ...) is a `SystemError` with a `code`
+(`core/errors.ts`) and a human-readable message. Shell commands catch these per-target (see
+`commands/helpers.ts`'s `forEachTarget`) so e.g. `rm a.txt b.txt` reports a partial failure instead
+of aborting; UI code funnels them through `computer.attempt()` / `computer.reportError()` into the
+notification center. `PacketResult.errorCode` reuses the same `ErrorCode` union so a dropped
+packet's reason and a thrown `SystemError`'s reason are always the same vocabulary.
